@@ -60,11 +60,24 @@ impl ZipArchive {
         }
     }
 
-    pub fn compress(&self) {
-        let mut jobs_lock = self.jobs.lock().unwrap();
-        for job in jobs_lock.drain(0..) {
-            job.to_data(&self.data);
-        }
+    pub fn compress(&self, threads: usize) {
+        std::thread::scope(|s| {
+            for _ in 0..threads {
+                s.spawn(|| {
+                    loop {
+                        let job = {
+                            let mut job_lock = self.jobs.lock().unwrap();
+                            if job_lock.is_empty() {
+                                break;
+                            } else {
+                                job_lock.pop().unwrap()
+                            }
+                        };
+                        job.to_data(&self.data)
+                    }
+                });
+            }
+        })
     }
 
     pub fn write(&self, writer: &mut impl Write) {
