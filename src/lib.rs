@@ -60,7 +60,7 @@ impl ZipArchive {
         }
     }
 
-    pub fn compress(&self) { // TODO: make this multithreaded
+    pub fn compress(&self) {
         let mut jobs_lock = self.jobs.lock().unwrap();
         for job in jobs_lock.drain(0..) {
             job.to_data(&self.data);
