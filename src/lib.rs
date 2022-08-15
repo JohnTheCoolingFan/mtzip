@@ -8,8 +8,6 @@ const FILE_RECORD_SIGNATURE: &[u8; 4] = b"PK34";
 const DIRECTORY_ENTRY_SIGNATURE: &[u8; 4] = b"PK12";
 const END_OF_CENTRAL_DIR_SIGNATURE: &[u8; 4] = b"PK56";
 
-const EXTERNAL_FILE_ATTRIBUTES: u32 = 0x41ED0000;
-
 #[repr(u16)]
 #[derive(Debug, Clone, Copy)]
 pub enum CompressionType {
@@ -103,7 +101,7 @@ impl ZipJob {
                         uncompressed_size,
                         filename: self.archive_path,
                         data,
-                        external_file_attributes: EXTERNAL_FILE_ATTRIBUTES
+                        external_file_attributes: 0o100644 << 16
                     }
                 },
                 ZipJobOrigin::RawData(in_data) => {
@@ -120,7 +118,7 @@ impl ZipJob {
                         uncompressed_size,
                         filename: self.archive_path,
                         data,
-                        external_file_attributes: EXTERNAL_FILE_ATTRIBUTES
+                        external_file_attributes: 0o100644 << 16
                     }
                 }
             }
@@ -266,7 +264,7 @@ impl ZipFile {
             uncompressed_size: 0,
             filename: name,
             data: vec![],
-            external_file_attributes: EXTERNAL_FILE_ATTRIBUTES // TODO
+            external_file_attributes: 0o40755 << 16 // TODO
         }
     }
 }
