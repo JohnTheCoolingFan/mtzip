@@ -101,7 +101,8 @@ impl ZipJob {
                         uncompressed_size,
                         filename: self.archive_path,
                         data,
-                        external_file_attributes: 0o100644 << 16
+                        external_file_attributes: 0o100644 << 16 // Possible improvement: read
+                                                                 // permissions/attributes from fs
                     }
                 },
                 ZipJobOrigin::RawData(in_data) => {
@@ -264,7 +265,7 @@ impl ZipFile {
             uncompressed_size: 0,
             filename: name,
             data: vec![],
-            external_file_attributes: 0o40755 << 16 // TODO
+            external_file_attributes: 0o40755 << 16
         }
     }
 }
