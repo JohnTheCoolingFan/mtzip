@@ -5,6 +5,7 @@ edition = "2021"
 description = "A library to make zip archives with multithreaded compression"
 license = "MIT"
 license-file = "LICENSE"
+repository = "https://github.com/JohnTheCoolingFan/mtzip"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
