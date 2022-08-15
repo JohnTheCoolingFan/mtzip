@@ -1,5 +1,5 @@
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
-use std::{sync::Mutex, path::Path, io::{Read, Write}, fs::File};
+use std::{sync::Mutex, path::Path, io::{Read, Write, Seek, SeekFrom}, fs::File};
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
 const VERSION_MADE_BY: u16 = 0x033F;
@@ -89,11 +89,11 @@ impl ZipJob {
                 ZipJobOrigin::Filesystem(fs_path) => {
                     let file = File::open(fs_path).unwrap();
                     let uncompressed_size = file.metadata().unwrap().len() as u32;
-                    let mut encoder = DeflateEncoder::new(file, Compression::new(9));
+                    let crc_reader = CrcReader::new(file);
+                    let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
                     let mut data = Vec::new();
                     encoder.read_to_end(&mut data).unwrap();
-                    let file = encoder.into_inner();
-                    let crc_reader = CrcReader::new(file);
+                    let crc_reader = encoder.into_inner();
                     let crc = crc_reader.crc().sum();
                     ZipFile {
                         compression_type: CompressionType::Deflate,
@@ -107,11 +107,11 @@ impl ZipJob {
                 },
                 ZipJobOrigin::RawData(in_data) => {
                     let uncompressed_size = in_data.len() as u32;
-                    let mut encoder = DeflateEncoder::new(in_data.as_slice(), Compression::new(9));
+                    let crc_reader = CrcReader::new(in_data.as_slice());
+                    let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
                     let mut data = Vec::new();
                     encoder.read_to_end(&mut data).unwrap();
-                    let in_data = encoder.into_inner();
-                    let crc_reader = CrcReader::new(in_data);
+                    let crc_reader = encoder.into_inner();
                     let crc = crc_reader.crc().sum();
                     ZipFile {
                         compression_type: CompressionType::Deflate,
