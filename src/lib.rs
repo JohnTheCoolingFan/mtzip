@@ -15,7 +15,7 @@ pub enum CompressionType {
     Deflate = 8
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ZipArchive {
     jobs: Mutex<Vec<ZipJob>>,
     data: Mutex<ZipData>
@@ -138,7 +138,7 @@ enum ZipJobOrigin {
     Directory
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct ZipData {
     files: Vec<ZipFile>
 }
