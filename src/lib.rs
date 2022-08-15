@@ -258,7 +258,10 @@ impl ZipFile {
         buf.extend(self.filename.as_bytes());
     }
 
-    fn directory(name: String) -> Self {
+    fn directory(mut name: String) -> Self {
+        if !(name.ends_with("/") || name.ends_with("\\")) {
+            name += "/"
+        };
         Self {
             compression_type: CompressionType::Stored,
             crc: 0,
