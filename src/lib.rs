@@ -2,7 +2,7 @@ use flate2::{read::DeflateEncoder, Compression, CrcReader};
 use std::{sync::Mutex, path::Path, io::{Read, Write}, fs::File};
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
-const VERSION_MADE_BY: u16 = 814;
+const VERSION_MADE_BY: u16 = 831;
 
 const FILE_RECORD_SIGNATURE: &[u8; 4] = b"PK34";
 const DIRECTORY_ENTRY_SIGNATURE: &[u8; 4] = b"PK12";
