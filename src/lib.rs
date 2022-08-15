@@ -4,9 +4,9 @@ use std::{sync::Mutex, path::Path, io::{Read, Write}, fs::File};
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
 const VERSION_MADE_BY: u16 = 0x033F;
 
-const FILE_RECORD_SIGNATURE: &[u8; 4] = b"PK34";
-const DIRECTORY_ENTRY_SIGNATURE: &[u8; 4] = b"PK12";
-const END_OF_CENTRAL_DIR_SIGNATURE: &[u8; 4] = b"PK56";
+const FILE_RECORD_SIGNATURE: u32 = 0x04034B50;
+const DIRECTORY_ENTRY_SIGNATURE: u32 = 0x02014B50;
+const END_OF_CENTRAL_DIR_SIGNATURE: u32 = 0x06054B50;
 
 #[repr(u16)]
 #[derive(Debug, Clone, Copy)]
@@ -161,7 +161,7 @@ impl ZipData {
         let central_dir_start = buf.len() as u32;
 
         // Signature
-        buf.extend(END_OF_CENTRAL_DIR_SIGNATURE);
+        buf.extend(END_OF_CENTRAL_DIR_SIGNATURE.to_le_bytes());
         // number of this disk
         buf.extend(0_u16.to_le_bytes());
         // number of the disk with start
@@ -192,7 +192,7 @@ struct ZipFile {
 impl ZipFile {
     fn to_bytes_filerecord(&self, buf: &mut Vec<u8>) {
         // signature
-        buf.extend(FILE_RECORD_SIGNATURE);
+        buf.extend(FILE_RECORD_SIGNATURE.to_le_bytes());
         // version needed to extract
         buf.extend(VERSION_NEEDED_TO_EXTRACT.to_le_bytes()); 
         // flags
@@ -221,7 +221,7 @@ impl ZipFile {
 
     fn to_bytes_direntry(&self, buf: &mut Vec<u8>, local_header_offset: u32) {
         // signature
-        buf.extend(DIRECTORY_ENTRY_SIGNATURE);
+        buf.extend(DIRECTORY_ENTRY_SIGNATURE.to_le_bytes());
         // version made by
         buf.extend(VERSION_MADE_BY.to_le_bytes());
         // version needed to extract
