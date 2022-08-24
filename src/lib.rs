@@ -82,7 +82,7 @@ impl ZipArchive {
 
     pub fn write(&self, writer: &mut impl Write) {
         let data_lock = self.data.lock().unwrap();
-        let mut data = Vec::new();
+        let mut data = Vec::with_capacity(data_lock.len());
         data_lock.to_bytes(&mut data);
         writer.write_all(&data).unwrap();
     }
@@ -190,6 +190,10 @@ impl ZipData {
         // Comment length
         buf.extend(0_u16.to_le_bytes());
     }
+
+    fn len(&self) -> usize {
+        self.files.iter().fold(0, |total, file| total + file.len()) + 22
+    }
 }
 
 #[derive(Debug)]
@@ -283,5 +287,9 @@ impl ZipFile {
             data: vec![],
             external_file_attributes: 0o40755 << 16
         }
+    }
+
+    fn len(&self) -> usize {
+        self.data.len() + self.filename.len() + self.filename.len() + 32 + 46
     }
 }
