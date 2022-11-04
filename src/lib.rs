@@ -107,9 +107,9 @@ impl ZipArchive {
 
     /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
     /// before write.
-    pub fn write(&self, writer: &mut impl Write, threads: usize) {
+    pub fn write(&self, writer: &mut impl Write, threads: Option<usize>) {
         if !*self.compressed.lock().unwrap() {
-            self.compress(threads)
+            self.compress(threads.unwrap_or(1))
         }
         let data_lock = self.data.lock().unwrap();
         let mut data = Vec::with_capacity(data_lock.len());
