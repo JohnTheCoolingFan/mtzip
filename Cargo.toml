@@ -7,6 +7,7 @@ license = "MIT"
 repository = "https://github.com/JohnTheCoolingFan/mtzip"
 categories = ["compression", "concurrency"]
 documentation = "https://docs.rs/mtzip"
+authors = ["Jonh The Cooling Fan <ivan8215145640@gmail.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
