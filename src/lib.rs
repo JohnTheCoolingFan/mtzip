@@ -8,6 +8,8 @@ const FILE_RECORD_SIGNATURE: u32 = 0x04034B50;
 const DIRECTORY_ENTRY_SIGNATURE: u32 = 0x02014B50;
 const END_OF_CENTRAL_DIR_SIGNATURE: u32 = 0x06054B50;
 
+/// Making archives with stored compression is not supported yet and only used on directory
+/// entries.
 #[repr(u16)]
 #[derive(Debug, Clone, Copy)]
 pub enum CompressionType {
@@ -15,6 +17,7 @@ pub enum CompressionType {
     Deflate = 8
 }
 
+/// Initialize using Default trait.
 #[derive(Debug, Default)]
 pub struct ZipArchive {
     jobs: Mutex<Vec<ZipJob>>,
@@ -23,6 +26,7 @@ pub struct ZipArchive {
 }
 
 impl ZipArchive {
+    /// Add file from silesystem. Will read on compression.
     pub fn add_file(&self, fs_path: impl AsRef<Path>, archive_name: &str) {
         {
             let mut compressed = self.compressed.lock().unwrap();
@@ -40,6 +44,7 @@ impl ZipArchive {
         }
     }
 
+    /// Add file from slice. Stores the data in archive struct for later compression.
     pub fn add_file_from_slice(&self, data: &[u8], archive_name: &str) {
         {
             let mut compressed = self.compressed.lock().unwrap();
@@ -57,6 +62,7 @@ impl ZipArchive {
         }
     }
 
+    /// Add a directory entry
     pub fn add_directory(&self, archive_name: &str) {
         {
             let mut compressed = self.compressed.lock().unwrap();
@@ -73,6 +79,8 @@ impl ZipArchive {
         }
     }
 
+    /// Call to execute compression. Will be done automatically on write if files were added before
+    /// write.
     pub fn compress(&self, threads: usize) {
         {
             let mut compressed = self.compressed.lock().unwrap();
@@ -97,6 +105,8 @@ impl ZipArchive {
         })
     }
 
+    /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
+    /// before write.
     pub fn write(&self, writer: &mut impl Write, threads: usize) {
         if !*self.compressed.lock().unwrap() {
             self.compress(threads)
