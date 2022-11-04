@@ -18,11 +18,16 @@ pub enum CompressionType {
 #[derive(Debug, Default)]
 pub struct ZipArchive {
     jobs: Mutex<Vec<ZipJob>>,
-    data: Mutex<ZipData>
+    data: Mutex<ZipData>,
+    compressed: Mutex<bool>
 }
 
 impl ZipArchive {
     pub fn add_file(&self, fs_path: impl AsRef<Path>, archive_name: &str) {
+        {
+            let mut compressed = self.compressed.lock().unwrap();
+            *compressed = false
+        }
         let path: Box<Path> = fs_path.as_ref().into();
         let name = archive_name.to_string();
         let job = ZipJob{
@@ -36,6 +41,10 @@ impl ZipArchive {
     }
 
     pub fn add_file_from_slice(&self, data: &[u8], archive_name: &str) {
+        {
+            let mut compressed = self.compressed.lock().unwrap();
+            *compressed = false
+        }
         let data = Vec::from(data);
         let name = archive_name.to_string();
         let job = ZipJob {
@@ -49,6 +58,10 @@ impl ZipArchive {
     }
 
     pub fn add_directory(&self, archive_name: &str) {
+        {
+            let mut compressed = self.compressed.lock().unwrap();
+            *compressed = false
+        }
         let name = archive_name.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory,
@@ -61,6 +74,10 @@ impl ZipArchive {
     }
 
     pub fn compress(&self, threads: usize) {
+        {
+            let mut compressed = self.compressed.lock().unwrap();
+            *compressed = true
+        }
         std::thread::scope(|s| {
             for _ in 0..threads {
                 s.spawn(|| {
@@ -80,7 +97,10 @@ impl ZipArchive {
         })
     }
 
-    pub fn write(&self, writer: &mut impl Write) {
+    pub fn write(&self, writer: &mut impl Write, threads: usize) {
+        if !*self.compressed.lock().unwrap() {
+            self.compress(threads)
+        }
         let data_lock = self.data.lock().unwrap();
         let mut data = Vec::with_capacity(data_lock.len());
         data_lock.to_bytes(&mut data);
