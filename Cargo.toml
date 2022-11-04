@@ -6,6 +6,7 @@ description = "A library to make zip archives with multithreaded compression"
 license = "MIT"
 repository = "https://github.com/JohnTheCoolingFan/mtzip"
 categories = ["compression", "concurrency"]
+documentation = "https://docs.rs/mtzip"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
