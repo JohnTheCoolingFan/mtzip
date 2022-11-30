@@ -98,7 +98,7 @@ impl ZipArchive {
                                 job_lock.pop().unwrap()
                             }
                         };
-                        job.to_data(&self.data)
+                        job.into_data(&self.data)
                     }
                 });
             }
@@ -125,7 +125,7 @@ struct ZipJob {
 }
 
 impl ZipJob {
-    fn to_data(self, archive: &Mutex<ZipData>) {
+    fn into_data(self, archive: &Mutex<ZipData>) {
         let data = {
             match self.data_origin {
                 ZipJobOrigin::Directory => ZipFile::directory(self.archive_path),
@@ -306,7 +306,7 @@ impl ZipFile {
     }
 
     fn directory(mut name: String) -> Self {
-        if !(name.ends_with("/") || name.ends_with("\\")) {
+        if !(name.ends_with('/') || name.ends_with('\\')) {
             name += "/"
         };
         Self {
