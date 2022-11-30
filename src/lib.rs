@@ -45,12 +45,12 @@ impl ZipArchive {
     }
 
     /// Add file from slice. Stores the data in archive struct for later compression.
-    pub fn add_file_from_slice(&self, data: &[u8], archive_name: &str) {
+    pub fn add_file_from_slice(&self, data: impl AsRef<[u8]>, archive_name: &str) {
         {
             let mut compressed = self.compressed.lock().unwrap();
             *compressed = false
         }
-        let data = Vec::from(data);
+        let data = Vec::from(data.as_ref());
         let name = archive_name.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::RawData(data),
