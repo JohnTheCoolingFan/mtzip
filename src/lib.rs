@@ -19,13 +19,13 @@ pub enum CompressionType {
 
 /// Initialize using Default trait.
 #[derive(Debug, Default)]
-pub struct ZipArchive {
-    jobs: Mutex<Vec<ZipJob>>,
+pub struct ZipArchive<'a> {
+    jobs: Mutex<Vec<ZipJob<'a>>>,
     data: Mutex<ZipData>,
     compressed: Mutex<bool>
 }
 
-impl ZipArchive {
+impl<'a> ZipArchive<'a> {
     /// Add file from silesystem. Will read on compression.
     pub fn add_file(&self, fs_path: impl AsRef<Path>, archive_name: &str) {
         {
@@ -45,12 +45,12 @@ impl ZipArchive {
     }
 
     /// Add file from slice. Stores the data in archive struct for later compression.
-    pub fn add_file_from_slice(&self, data: impl AsRef<[u8]>, archive_name: &str) {
+    pub fn add_file_from_slice(&self, data: &'a[u8], archive_name: &str) {
         {
             let mut compressed = self.compressed.lock().unwrap();
             *compressed = false
         }
-        let data = Vec::from(data.as_ref());
+        let data = data;
         let name = archive_name.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::RawData(data),
@@ -119,12 +119,12 @@ impl ZipArchive {
 }
 
 #[derive(Debug)]
-struct ZipJob {
-    data_origin: ZipJobOrigin,
+struct ZipJob<'a> {
+    data_origin: ZipJobOrigin<'a>,
     archive_path: String
 }
 
-impl ZipJob {
+impl ZipJob<'_> {
     fn into_data(self, archive: &Mutex<ZipData>) {
         let data = {
             match self.data_origin {
@@ -150,7 +150,7 @@ impl ZipJob {
                 },
                 ZipJobOrigin::RawData(in_data) => {
                     let uncompressed_size = in_data.len() as u32;
-                    let crc_reader = CrcReader::new(in_data.as_slice());
+                    let crc_reader = CrcReader::new(in_data);
                     let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
                     let mut data = Vec::new();
                     encoder.read_to_end(&mut data).unwrap();
@@ -175,9 +175,9 @@ impl ZipJob {
 }
 
 #[derive(Debug)]
-enum ZipJobOrigin {
+enum ZipJobOrigin<'a> {
     Filesystem(Box<Path>),
-    RawData(Vec<u8>),
+    RawData(&'a [u8]),
     Directory
 }
 
