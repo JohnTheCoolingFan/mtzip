@@ -27,15 +27,14 @@ pub struct ZipArchive<'a> {
 
 impl<'a> ZipArchive<'a> {
     /// Add file from silesystem. Will read on compression.
-    pub fn add_file(&self, fs_path: impl AsRef<Path>, archive_name: &str) {
+    pub fn add_file(&self, fs_path: &'a Path, archive_name: &str) {
         {
             let mut compressed = self.compressed.lock().unwrap();
             *compressed = false
         }
-        let path: Box<Path> = fs_path.as_ref().into();
         let name = archive_name.to_string();
         let job = ZipJob{
-            data_origin: ZipJobOrigin::Filesystem(path),
+            data_origin: ZipJobOrigin::Filesystem(fs_path),
             archive_path: name
         };
         {
@@ -176,7 +175,7 @@ impl ZipJob<'_> {
 
 #[derive(Debug)]
 enum ZipJobOrigin<'a> {
-    Filesystem(Box<Path>),
+    Filesystem(&'a Path),
     RawData(&'a [u8]),
     Directory
 }
