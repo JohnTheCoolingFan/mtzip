@@ -1,5 +1,5 @@
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
-use std::{sync::Mutex, path::Path, io::{Read, Write}, fs::File};
+use std::{sync::Mutex, path::Path, io::{Read, Write, Seek, SeekFrom}, fs::File};
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
 const VERSION_MADE_BY: u16 = 0x033F;
@@ -106,14 +106,12 @@ impl<'a> ZipArchive<'a> {
 
     /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
     /// before write.
-    pub fn write(&self, writer: &mut impl Write, threads: Option<usize>) {
+    pub fn write<W: Write + Seek>(&self, writer: &mut W, threads: Option<usize>) {
         if !*self.compressed.lock().unwrap() {
             self.compress(threads.unwrap_or(1))
         }
         let data_lock = self.data.lock().unwrap();
-        let mut data = Vec::with_capacity(data_lock.len());
-        data_lock.to_bytes(&mut data);
-        writer.write_all(&data).unwrap();
+        data_lock.to_bytes(writer);
     }
 }
 
@@ -186,42 +184,38 @@ struct ZipData {
 }
 
 impl ZipData {
-    fn to_bytes(&self, buf: &mut Vec<u8>) {
+    fn to_bytes<W: Write + Seek>(&self, buf: &mut W) {
         let mut offsets: Vec<u32> = Vec::new();
         // Zip file records
         for file in &self.files {
-            offsets.push(buf.len() as u32);
+            offsets.push(buf.seek(SeekFrom::Current(0)).unwrap() as u32);
             file.to_bytes_filerecord(buf);
         }
-        let central_dir_offset = buf.len() as u32;
+        let central_dir_offset = buf.seek(SeekFrom::Current(0)).unwrap() as u32;
         // Zip directory entries
         for (file, offset) in self.files.iter().zip(offsets.iter()) {
             file.to_bytes_direntry(buf, *offset);
         }
 
         // End of central dir record
-        let central_dir_start = buf.len() as u32;
+        let central_dir_start = buf.seek(SeekFrom::Current(0)).unwrap() as u32;
 
         // Signature
-        buf.extend(END_OF_CENTRAL_DIR_SIGNATURE.to_le_bytes());
+        buf.write_all(&END_OF_CENTRAL_DIR_SIGNATURE.to_le_bytes()).unwrap();
         // number of this disk
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // number of the disk with start
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // Number of entries on this disk
-        buf.extend((self.files.len() as u16).to_le_bytes());
+        buf.write_all(&(self.files.len() as u16).to_le_bytes()).unwrap();
         // Number of entries
-        buf.extend((self.files.len() as u16).to_le_bytes());
+        buf.write_all(&(self.files.len() as u16).to_le_bytes()).unwrap();
         // Central dir size
-        buf.extend((central_dir_start - central_dir_offset).to_le_bytes());
+        buf.write_all(&(central_dir_start - central_dir_offset).to_le_bytes()).unwrap();
         // Central dir offset
-        buf.extend(central_dir_offset.to_le_bytes());
+        buf.write_all(&central_dir_offset.to_le_bytes()).unwrap();
         // Comment length
-        buf.extend(0_u16.to_le_bytes());
-    }
-
-    fn len(&self) -> usize {
-        self.files.iter().fold(0, |total, file| total + file.len()) + 22
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
     }
 }
 
@@ -236,72 +230,72 @@ struct ZipFile {
 }
 
 impl ZipFile {
-    fn to_bytes_filerecord(&self, buf: &mut Vec<u8>) {
+    fn to_bytes_filerecord<W: Write + Seek>(&self, buf: &mut W) {
         // signature
-        buf.extend(FILE_RECORD_SIGNATURE.to_le_bytes());
+        buf.write_all(&FILE_RECORD_SIGNATURE.to_le_bytes()).unwrap();
         // version needed to extract
-        buf.extend(VERSION_NEEDED_TO_EXTRACT.to_le_bytes()); 
+        buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes()).unwrap(); 
         // flags
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // compression type
-        buf.extend((self.compression_type as u16).to_le_bytes());
+        buf.write_all(&(self.compression_type as u16).to_le_bytes()).unwrap();
         // Time // TODO
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // Date // TODO
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // crc 
-        buf.extend(self.crc.to_le_bytes());
+        buf.write_all(&self.crc.to_le_bytes()).unwrap();
         // Compressed size
-        buf.extend((self.data.len() as u32).to_le_bytes());
+        buf.write_all(&(self.data.len() as u32).to_le_bytes()).unwrap();
         // Uncompressed size
-        buf.extend(self.uncompressed_size.to_le_bytes());
+        buf.write_all(&self.uncompressed_size.to_le_bytes()).unwrap();
         // Filename size
-        buf.extend((self.filename.len() as u16).to_le_bytes());
+        buf.write_all(&(self.filename.len() as u16).to_le_bytes()).unwrap();
         // extra field size
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // Filename
-        buf.extend(self.filename.as_bytes());
+        buf.write_all(self.filename.as_bytes()).unwrap();
         // Data
-        buf.extend(&self.data);
+        buf.write_all(&self.data).unwrap();
     }
 
-    fn to_bytes_direntry(&self, buf: &mut Vec<u8>, local_header_offset: u32) {
+    fn to_bytes_direntry<W: Write + Seek>(&self, buf: &mut W, local_header_offset: u32) {
         // signature
-        buf.extend(DIRECTORY_ENTRY_SIGNATURE.to_le_bytes());
+        buf.write_all(&DIRECTORY_ENTRY_SIGNATURE.to_le_bytes()).unwrap();
         // version made by
-        buf.extend(VERSION_MADE_BY.to_le_bytes());
+        buf.write_all(&VERSION_MADE_BY.to_le_bytes()).unwrap();
         // version needed to extract
-        buf.extend(VERSION_NEEDED_TO_EXTRACT.to_le_bytes());
+        buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes()).unwrap();
         // flags
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // compression type
-        buf.extend((self.compression_type as u16).to_le_bytes());
+        buf.write_all(&(self.compression_type as u16).to_le_bytes()).unwrap();
         // Time // TODO
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // Date // TODO
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // crc
-        buf.extend(self.crc.to_le_bytes());
+        buf.write_all(&self.crc.to_le_bytes()).unwrap();
         // Compressed size
-        buf.extend((self.data.len() as u32).to_le_bytes());
+        buf.write_all(&(self.data.len() as u32).to_le_bytes()).unwrap();
         // Uncompressed size
-        buf.extend(self.uncompressed_size.to_le_bytes());
+        buf.write_all(&self.uncompressed_size.to_le_bytes()).unwrap();
         // Filename size
-        buf.extend((self.filename.len() as u16).to_le_bytes());
+        buf.write_all(&(self.filename.len() as u16).to_le_bytes()).unwrap();
         // extra field size
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // comment size
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // disk number start
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // internal file attributes
-        buf.extend(0_u16.to_le_bytes());
+        buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // external file attributes
-        buf.extend(self.external_file_attributes.to_le_bytes());
+        buf.write_all(&self.external_file_attributes.to_le_bytes()).unwrap();
         // relative offset of local header
-        buf.extend(local_header_offset.to_le_bytes());
+        buf.write_all(&local_header_offset.to_le_bytes()).unwrap();
         // Filename
-        buf.extend(self.filename.as_bytes());
+        buf.write_all(self.filename.as_bytes()).unwrap();
     }
 
     fn directory(mut name: String) -> Self {
@@ -316,9 +310,5 @@ impl ZipFile {
             data: vec![],
             external_file_attributes: 0o40755 << 16
         }
-    }
-
-    fn len(&self) -> usize {
-        self.data.len() + self.filename.len() + self.filename.len() + 32 + 46
     }
 }
