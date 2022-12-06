@@ -1,5 +1,5 @@
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
-use std::{sync::Mutex, path::Path, io::{Read, Write, Seek, SeekFrom}, fs::File};
+use std::{sync::Mutex, path::{Path, PathBuf}, io::{Read, Write, Seek, SeekFrom}, fs::File};
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
 const VERSION_MADE_BY: u16 = 0x033F;
@@ -27,14 +27,14 @@ pub struct ZipArchive<'a> {
 
 impl<'a> ZipArchive<'a> {
     /// Add file from silesystem. Will read on compression.
-    pub fn add_file(&self, fs_path: &'a Path, archive_name: &str) {
+    pub fn add_file(&self, fs_path: &Path, archive_name: &str) {
         {
             let mut compressed = self.compressed.lock().unwrap();
             *compressed = false
         }
         let name = archive_name.to_string();
         let job = ZipJob{
-            data_origin: ZipJobOrigin::Filesystem(fs_path),
+            data_origin: ZipJobOrigin::Filesystem(PathBuf::from(fs_path)),
             archive_path: name
         };
         {
@@ -173,7 +173,7 @@ impl ZipJob<'_> {
 
 #[derive(Debug)]
 enum ZipJobOrigin<'a> {
-    Filesystem(&'a Path),
+    Filesystem(PathBuf),
     RawData(&'a [u8]),
     Directory
 }
