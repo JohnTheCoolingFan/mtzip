@@ -1,5 +1,10 @@
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
-use std::{sync::Mutex, path::PathBuf, io::{Read, Write, Seek, SeekFrom}, fs::File};
+use std::{
+    fs::File,
+    io::{Read, Seek, SeekFrom, Write},
+    path::PathBuf,
+    sync::Mutex,
+};
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
 const VERSION_MADE_BY: u16 = 0x033F;
@@ -14,7 +19,7 @@ const END_OF_CENTRAL_DIR_SIGNATURE: u32 = 0x06054B50;
 #[derive(Debug, Clone, Copy)]
 pub enum CompressionType {
     Stored = 0,
-    Deflate = 8
+    Deflate = 8,
 }
 
 /// Initialize using Default trait.
@@ -22,7 +27,7 @@ pub enum CompressionType {
 pub struct ZipArchive<'a> {
     jobs: Mutex<Vec<ZipJob<'a>>>,
     data: Mutex<ZipData>,
-    compressed: Mutex<bool>
+    compressed: Mutex<bool>,
 }
 
 impl<'a> ZipArchive<'a> {
@@ -33,9 +38,9 @@ impl<'a> ZipArchive<'a> {
             *compressed = false
         }
         let name = archive_name.to_string();
-        let job = ZipJob{
+        let job = ZipJob {
             data_origin: ZipJobOrigin::Filesystem(fs_path.into()),
-            archive_path: name
+            archive_path: name,
         };
         {
             let mut jobs = self.jobs.lock().unwrap();
@@ -44,7 +49,7 @@ impl<'a> ZipArchive<'a> {
     }
 
     /// Add file from slice. Stores the data in archive struct for later compression.
-    pub fn add_file_from_slice(&self, data: &'a[u8], archive_name: &str) {
+    pub fn add_file_from_slice(&self, data: &'a [u8], archive_name: &str) {
         {
             let mut compressed = self.compressed.lock().unwrap();
             *compressed = false
@@ -53,7 +58,7 @@ impl<'a> ZipArchive<'a> {
         let name = archive_name.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::RawData(data),
-            archive_path: name
+            archive_path: name,
         };
         {
             let mut jobs = self.jobs.lock().unwrap();
@@ -70,7 +75,7 @@ impl<'a> ZipArchive<'a> {
         let name = archive_name.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory,
-            archive_path: name
+            archive_path: name,
         };
         {
             let mut jobs = self.jobs.lock().unwrap();
@@ -87,18 +92,16 @@ impl<'a> ZipArchive<'a> {
         }
         std::thread::scope(|s| {
             for _ in 0..threads {
-                s.spawn(|| {
-                    loop {
-                        let job = {
-                            let mut job_lock = self.jobs.lock().unwrap();
-                            if job_lock.is_empty() {
-                                break;
-                            } else {
-                                job_lock.pop().unwrap()
-                            }
-                        };
-                        job.into_data(&self.data)
-                    }
+                s.spawn(|| loop {
+                    let job = {
+                        let mut job_lock = self.jobs.lock().unwrap();
+                        if job_lock.is_empty() {
+                            break;
+                        } else {
+                            job_lock.pop().unwrap()
+                        }
+                    };
+                    job.into_data(&self.data)
                 });
             }
         })
@@ -118,7 +121,7 @@ impl<'a> ZipArchive<'a> {
 #[derive(Debug)]
 struct ZipJob<'a> {
     data_origin: ZipJobOrigin<'a>,
-    archive_path: String
+    archive_path: String,
 }
 
 impl ZipJob<'_> {
@@ -141,10 +144,10 @@ impl ZipJob<'_> {
                         uncompressed_size,
                         filename: self.archive_path,
                         data,
-                        external_file_attributes: 0o100644 << 16 // Possible improvement: read
-                                                                 // permissions/attributes from fs
+                        external_file_attributes: 0o100644 << 16, // Possible improvement: read
+                                                                  // permissions/attributes from fs
                     }
-                },
+                }
                 ZipJobOrigin::RawData(in_data) => {
                     let uncompressed_size = in_data.len() as u32;
                     let crc_reader = CrcReader::new(in_data);
@@ -159,7 +162,7 @@ impl ZipJob<'_> {
                         uncompressed_size,
                         filename: self.archive_path,
                         data,
-                        external_file_attributes: 0o100644 << 16
+                        external_file_attributes: 0o100644 << 16,
                     }
                 }
             }
@@ -175,12 +178,12 @@ impl ZipJob<'_> {
 enum ZipJobOrigin<'a> {
     Filesystem(PathBuf),
     RawData(&'a [u8]),
-    Directory
+    Directory,
 }
 
 #[derive(Debug, Default)]
 struct ZipData {
-    files: Vec<ZipFile>
+    files: Vec<ZipFile>,
 }
 
 impl ZipData {
@@ -201,17 +204,21 @@ impl ZipData {
         let central_dir_start = buf.seek(SeekFrom::Current(0)).unwrap() as u32;
 
         // Signature
-        buf.write_all(&END_OF_CENTRAL_DIR_SIGNATURE.to_le_bytes()).unwrap();
+        buf.write_all(&END_OF_CENTRAL_DIR_SIGNATURE.to_le_bytes())
+            .unwrap();
         // number of this disk
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // number of the disk with start
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // Number of entries on this disk
-        buf.write_all(&(self.files.len() as u16).to_le_bytes()).unwrap();
+        buf.write_all(&(self.files.len() as u16).to_le_bytes())
+            .unwrap();
         // Number of entries
-        buf.write_all(&(self.files.len() as u16).to_le_bytes()).unwrap();
+        buf.write_all(&(self.files.len() as u16).to_le_bytes())
+            .unwrap();
         // Central dir size
-        buf.write_all(&(central_dir_start - central_dir_offset).to_le_bytes()).unwrap();
+        buf.write_all(&(central_dir_start - central_dir_offset).to_le_bytes())
+            .unwrap();
         // Central dir offset
         buf.write_all(&central_dir_offset.to_le_bytes()).unwrap();
         // Comment length
@@ -226,7 +233,7 @@ struct ZipFile {
     uncompressed_size: u32,
     filename: String,
     data: Vec<u8>,
-    external_file_attributes: u32
+    external_file_attributes: u32,
 }
 
 impl ZipFile {
@@ -234,23 +241,28 @@ impl ZipFile {
         // signature
         buf.write_all(&FILE_RECORD_SIGNATURE.to_le_bytes()).unwrap();
         // version needed to extract
-        buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes()).unwrap(); 
+        buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())
+            .unwrap();
         // flags
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // compression type
-        buf.write_all(&(self.compression_type as u16).to_le_bytes()).unwrap();
+        buf.write_all(&(self.compression_type as u16).to_le_bytes())
+            .unwrap();
         // Time // TODO
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // Date // TODO
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
-        // crc 
+        // crc
         buf.write_all(&self.crc.to_le_bytes()).unwrap();
         // Compressed size
-        buf.write_all(&(self.data.len() as u32).to_le_bytes()).unwrap();
+        buf.write_all(&(self.data.len() as u32).to_le_bytes())
+            .unwrap();
         // Uncompressed size
-        buf.write_all(&self.uncompressed_size.to_le_bytes()).unwrap();
+        buf.write_all(&self.uncompressed_size.to_le_bytes())
+            .unwrap();
         // Filename size
-        buf.write_all(&(self.filename.len() as u16).to_le_bytes()).unwrap();
+        buf.write_all(&(self.filename.len() as u16).to_le_bytes())
+            .unwrap();
         // extra field size
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // Filename
@@ -261,15 +273,18 @@ impl ZipFile {
 
     fn to_bytes_direntry<W: Write + Seek>(&self, buf: &mut W, local_header_offset: u32) {
         // signature
-        buf.write_all(&DIRECTORY_ENTRY_SIGNATURE.to_le_bytes()).unwrap();
+        buf.write_all(&DIRECTORY_ENTRY_SIGNATURE.to_le_bytes())
+            .unwrap();
         // version made by
         buf.write_all(&VERSION_MADE_BY.to_le_bytes()).unwrap();
         // version needed to extract
-        buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes()).unwrap();
+        buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())
+            .unwrap();
         // flags
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // compression type
-        buf.write_all(&(self.compression_type as u16).to_le_bytes()).unwrap();
+        buf.write_all(&(self.compression_type as u16).to_le_bytes())
+            .unwrap();
         // Time // TODO
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // Date // TODO
@@ -277,11 +292,14 @@ impl ZipFile {
         // crc
         buf.write_all(&self.crc.to_le_bytes()).unwrap();
         // Compressed size
-        buf.write_all(&(self.data.len() as u32).to_le_bytes()).unwrap();
+        buf.write_all(&(self.data.len() as u32).to_le_bytes())
+            .unwrap();
         // Uncompressed size
-        buf.write_all(&self.uncompressed_size.to_le_bytes()).unwrap();
+        buf.write_all(&self.uncompressed_size.to_le_bytes())
+            .unwrap();
         // Filename size
-        buf.write_all(&(self.filename.len() as u16).to_le_bytes()).unwrap();
+        buf.write_all(&(self.filename.len() as u16).to_le_bytes())
+            .unwrap();
         // extra field size
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // comment size
@@ -291,7 +309,8 @@ impl ZipFile {
         // internal file attributes
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // external file attributes
-        buf.write_all(&self.external_file_attributes.to_le_bytes()).unwrap();
+        buf.write_all(&self.external_file_attributes.to_le_bytes())
+            .unwrap();
         // relative offset of local header
         buf.write_all(&local_header_offset.to_le_bytes()).unwrap();
         // Filename
@@ -308,7 +327,7 @@ impl ZipFile {
             uncompressed_size: 0,
             filename: name,
             data: vec![],
-            external_file_attributes: 0o40755 << 16
+            external_file_attributes: 0o40755 << 16,
         }
     }
 }
