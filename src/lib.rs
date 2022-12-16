@@ -1,5 +1,5 @@
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
-use std::{sync::Mutex, path::{Path, PathBuf}, io::{Read, Write, Seek, SeekFrom}, fs::File};
+use std::{sync::Mutex, path::PathBuf, io::{Read, Write, Seek, SeekFrom}, fs::File};
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
 const VERSION_MADE_BY: u16 = 0x033F;
