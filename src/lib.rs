@@ -1,7 +1,7 @@
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
 use std::{
     fs::File,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, Write},
     path::PathBuf,
     sync::Mutex,
 };
@@ -191,17 +191,17 @@ impl ZipData {
         let mut offsets: Vec<u32> = Vec::new();
         // Zip file records
         for file in &self.files {
-            offsets.push(buf.seek(SeekFrom::Current(0)).unwrap() as u32);
+            offsets.push(buf.stream_position().unwrap() as u32);
             file.to_bytes_filerecord(buf);
         }
-        let central_dir_offset = buf.seek(SeekFrom::Current(0)).unwrap() as u32;
+        let central_dir_offset = buf.stream_position().unwrap() as u32;
         // Zip directory entries
         for (file, offset) in self.files.iter().zip(offsets.iter()) {
             file.to_bytes_direntry(buf, *offset);
         }
 
         // End of central dir record
-        let central_dir_start = buf.seek(SeekFrom::Current(0)).unwrap() as u32;
+        let central_dir_start = buf.stream_position().unwrap() as u32;
 
         // Signature
         buf.write_all(&END_OF_CENTRAL_DIR_SIGNATURE.to_le_bytes())
