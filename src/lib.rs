@@ -31,15 +31,6 @@ pub struct ZipArchive<'a> {
 }
 
 impl<'a> ZipArchive<'a> {
-    #[cfg(feature = "auto-threading")]
-    fn get_threads() -> usize {
-        use sysinfo::SystemExt;
-
-        let ref_kind = sysinfo::RefreshKind::new().with_cpu(sysinfo::CpuRefreshKind::new());
-        let sys = sysinfo::System::new_with_specifics(ref_kind);
-        sys.cpus().len()
-    }
-
     /// Add file from silesystem. Will read on compression.
     pub fn add_file(&self, fs_path: impl Into<PathBuf>, archive_name: &str) {
         {
@@ -96,7 +87,7 @@ impl<'a> ZipArchive<'a> {
     /// write. Automatically chooses amount of threads cpu has.
     #[cfg(feature = "auto-threading")]
     pub fn compress(&self) {
-        let threads = Self::get_threads();
+        let threads = std::thread::available_parallelism().unwrap().get();
         self.compress_with_threads(threads);
     }
 
@@ -128,7 +119,7 @@ impl<'a> ZipArchive<'a> {
     /// before write. Automatically chooses the amount of threads cpu has.
     #[cfg(feature = "auto-threading")]
     pub fn write<W: Write + Seek>(&self, writer: &mut W) {
-        let threads = Self::get_threads();
+        let threads = std::thread::available_parallelism().unwrap().get();
         self.write_with_threads(writer, threads);
     }
 
