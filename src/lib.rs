@@ -13,6 +13,8 @@ const FILE_RECORD_SIGNATURE: u32 = 0x04034B50;
 const DIRECTORY_ENTRY_SIGNATURE: u32 = 0x02014B50;
 const END_OF_CENTRAL_DIR_SIGNATURE: u32 = 0x06054B50;
 
+// TODO: rayon integration
+
 /// Making archives with stored compression is not supported yet and only used on directory
 /// entries.
 #[repr(u16)]
