@@ -85,7 +85,7 @@ impl<'a> ZipArchive<'a> {
 
     /// Call to execute compression. Will be done automatically on write if files were added before
     /// write.
-    pub fn compress(&self, threads: usize) {
+    pub fn compress_with_threads(&self, threads: usize) {
         {
             let mut compressed = self.compressed.lock().unwrap();
             *compressed = true
@@ -109,9 +109,9 @@ impl<'a> ZipArchive<'a> {
 
     /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
     /// before write. Defaults to 1 thread.
-    pub fn write<W: Write + Seek>(&self, writer: &mut W, threads: Option<usize>) {
+    pub fn write_with_threads<W: Write + Seek>(&self, writer: &mut W, threads: Option<usize>) {
         if !*self.compressed.lock().unwrap() {
-            self.compress(threads.unwrap_or(1))
+            self.compress_with_threads(threads.unwrap_or(1))
         }
         let data_lock = self.data.lock().unwrap();
         data_lock.to_bytes(writer);
