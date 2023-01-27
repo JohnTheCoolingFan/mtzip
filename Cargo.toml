@@ -1,6 +1,6 @@
 [package]
 name = "mtzip"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 description = "A library to make zip archives with multithreaded compression"
 license = "MIT"
