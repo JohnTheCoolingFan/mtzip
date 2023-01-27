@@ -31,6 +31,15 @@ pub struct ZipArchive<'a> {
 }
 
 impl<'a> ZipArchive<'a> {
+    #[cfg(feature = "auto-threading")]
+    fn get_threads() -> usize {
+        use sysinfo::SystemExt;
+
+        let ref_kind = sysinfo::RefreshKind::new().with_cpu(sysinfo::CpuRefreshKind::new());
+        let sys = sysinfo::System::new_with_specifics(ref_kind);
+        sys.cpus().len()
+    }
+
     /// Add file from silesystem. Will read on compression.
     pub fn add_file(&self, fs_path: impl Into<PathBuf>, archive_name: &str) {
         {
@@ -84,7 +93,15 @@ impl<'a> ZipArchive<'a> {
     }
 
     /// Call to execute compression. Will be done automatically on write if files were added before
-    /// write.
+    /// write. Automatically chooses amount of threads cpu has.
+    #[cfg(feature = "auto-threading")]
+    pub fn compress(&self) {
+        let threads = Self::get_threads();
+        self.compress_with_threads(threads);
+    }
+
+    /// Call to execute compression. Will be done automatically on write if files were added before
+    /// write. Allows specifying amount of threads.
     pub fn compress_with_threads(&self, threads: usize) {
         {
             let mut compressed = self.compressed.lock().unwrap();
@@ -108,10 +125,18 @@ impl<'a> ZipArchive<'a> {
     }
 
     /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
-    /// before write. Defaults to 1 thread.
-    pub fn write_with_threads<W: Write + Seek>(&self, writer: &mut W, threads: Option<usize>) {
+    /// before write. Automatically chooses the amount of threads cpu has.
+    #[cfg(feature = "auto-threading")]
+    pub fn write<W: Write + Seek>(&self, writer: &mut W) {
+        let threads = Self::get_threads();
+        self.write_with_threads(writer, threads);
+    }
+
+    /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
+    /// before write. Allows specifying amount of threads.
+    pub fn write_with_threads<W: Write + Seek>(&self, writer: &mut W, threads: usize) {
         if !*self.compressed.lock().unwrap() {
-            self.compress_with_threads(threads.unwrap_or(1))
+            self.compress_with_threads(threads)
         }
         let data_lock = self.data.lock().unwrap();
         data_lock.to_bytes(writer);

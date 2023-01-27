@@ -25,5 +25,7 @@ zipper.add_file("input/file_that_goes_to_a_dir.txt", "test_dir/file_that_goes_to
 // First, open the file
 let mut file = File::create("output.zip").unwrap();
 // Then, write to it
-zipper.write(&mut file, Some(12)); // My pc has a Ryzen 5 3600, which has 12 threads. Choose number of threads according to your platform
+zipper.write(&mut file); // Amount of threads is chosen automatically
 ```
+
+`ZipArchive::write` and `ZipArchive::compress` methods that do not require specifying amoutn of threads and choose it automatically using `sysinfo` crate are enabled by default feature `auto-threading`. If you don't need or want this, you can disable default features.
