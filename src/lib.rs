@@ -87,7 +87,6 @@ impl<'a> ZipArchive<'a> {
 
     /// Call to execute compression. Will be done automatically on write if files were added before
     /// write. Automatically chooses amount of threads cpu has.
-    #[cfg(feature = "auto-threading")]
     pub fn compress(&self) {
         let threads = std::thread::available_parallelism().unwrap().get();
         self.compress_with_threads(threads);
@@ -119,7 +118,6 @@ impl<'a> ZipArchive<'a> {
 
     /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
     /// before write. Automatically chooses the amount of threads cpu has.
-    #[cfg(feature = "auto-threading")]
     pub fn write<W: Write + Seek>(&self, writer: &mut W) {
         let threads = std::thread::available_parallelism().unwrap().get();
         self.write_with_threads(writer, threads);

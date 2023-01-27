@@ -27,5 +27,3 @@ let mut file = File::create("output.zip").unwrap();
 // Then, write to it
 zipper.write(&mut file); // Amount of threads is chosen automatically
 ```
-
-`ZipArchive::write` and `ZipArchive::compress` methods that do not require specifying amoutn of threads and choose it automatically using `sysinfo` crate are enabled by default feature `auto-threading`. If you don't need or want this, you can disable default features.
