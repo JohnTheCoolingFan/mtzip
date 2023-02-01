@@ -18,7 +18,7 @@ zipper.add_file_from_slice(b"Hello, world!", "hello_world.txt");
 
 // Adding a directory and a file to it
 zipper.add_directory("test_dir");
-// And  adding a file to it
+// And adding a file to it
 zipper.add_file("input/file_that_goes_to_a_dir.txt", "test_dir/file_that_goes_to_a_dir.txt");
 
 // Writing to a file
