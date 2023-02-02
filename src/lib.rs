@@ -3,7 +3,7 @@ use std::{
     fs::File,
     io::{Read, Seek, Write},
     path::PathBuf,
-    sync::Mutex,
+    sync::{mpsc, Mutex},
 };
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
@@ -99,9 +99,11 @@ impl<'a> ZipArchive<'a> {
             let mut compressed = self.compressed.lock().unwrap();
             *compressed = true
         }
+        let (tx, rx) = mpsc::channel();
         std::thread::scope(|s| {
             for _ in 0..threads {
-                s.spawn(|| loop {
+                let thread_tx = tx.clone();
+                s.spawn(move || loop {
                     let job = {
                         let mut job_lock = self.jobs.lock().unwrap();
                         if job_lock.is_empty() {
@@ -110,10 +112,14 @@ impl<'a> ZipArchive<'a> {
                             job_lock.pop().unwrap()
                         }
                     };
-                    job.into_data(&self.data)
+                    thread_tx.send(job.into_file()).unwrap();
                 });
             }
-        })
+        });
+        {
+            let mut data_lock = self.data.lock().unwrap();
+            data_lock.files.extend(rx.iter());
+        }
     }
 
     /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
@@ -141,51 +147,45 @@ struct ZipJob<'a> {
 }
 
 impl ZipJob<'_> {
-    fn into_data(self, archive: &Mutex<ZipData>) {
-        let data = {
-            match self.data_origin {
-                ZipJobOrigin::Directory => ZipFile::directory(self.archive_path),
-                ZipJobOrigin::Filesystem(fs_path) => {
-                    let file = File::open(fs_path).unwrap();
-                    let uncompressed_size = file.metadata().unwrap().len() as u32;
-                    let crc_reader = CrcReader::new(file);
-                    let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
-                    let mut data = Vec::new();
-                    encoder.read_to_end(&mut data).unwrap();
-                    let crc_reader = encoder.into_inner();
-                    let crc = crc_reader.crc().sum();
-                    ZipFile {
-                        compression_type: CompressionType::Deflate,
-                        crc,
-                        uncompressed_size,
-                        filename: self.archive_path,
-                        data,
-                        external_file_attributes: 0o100644 << 16, // Possible improvement: read
-                                                                  // permissions/attributes from fs
-                    }
-                }
-                ZipJobOrigin::RawData(in_data) => {
-                    let uncompressed_size = in_data.len() as u32;
-                    let crc_reader = CrcReader::new(in_data);
-                    let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
-                    let mut data = Vec::new();
-                    encoder.read_to_end(&mut data).unwrap();
-                    let crc_reader = encoder.into_inner();
-                    let crc = crc_reader.crc().sum();
-                    ZipFile {
-                        compression_type: CompressionType::Deflate,
-                        crc,
-                        uncompressed_size,
-                        filename: self.archive_path,
-                        data,
-                        external_file_attributes: 0o100644 << 16,
-                    }
+    fn into_file(self) -> ZipFile {
+        match self.data_origin {
+            ZipJobOrigin::Directory => ZipFile::directory(self.archive_path),
+            ZipJobOrigin::Filesystem(fs_path) => {
+                let file = File::open(fs_path).unwrap();
+                let uncompressed_size = file.metadata().unwrap().len() as u32;
+                let crc_reader = CrcReader::new(file);
+                let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
+                let mut data = Vec::new();
+                encoder.read_to_end(&mut data).unwrap();
+                let crc_reader = encoder.into_inner();
+                let crc = crc_reader.crc().sum();
+                ZipFile {
+                    compression_type: CompressionType::Deflate,
+                    crc,
+                    uncompressed_size,
+                    filename: self.archive_path,
+                    data,
+                    external_file_attributes: 0o100644 << 16, // Possible improvement: read
+                                                              // permissions/attributes from fs
                 }
             }
-        };
-        {
-            let mut data_lock = archive.lock().unwrap();
-            data_lock.files.push(data);
+            ZipJobOrigin::RawData(in_data) => {
+                let uncompressed_size = in_data.len() as u32;
+                let crc_reader = CrcReader::new(in_data);
+                let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
+                let mut data = Vec::new();
+                encoder.read_to_end(&mut data).unwrap();
+                let crc_reader = encoder.into_inner();
+                let crc = crc_reader.crc().sum();
+                ZipFile {
+                    compression_type: CompressionType::Deflate,
+                    crc,
+                    uncompressed_size,
+                    filename: self.archive_path,
+                    data,
+                    external_file_attributes: 0o100644 << 16,
+                }
+            }
         }
     }
 }
