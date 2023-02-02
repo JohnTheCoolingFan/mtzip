@@ -116,6 +116,7 @@ impl<'a> ZipArchive<'a> {
                 });
             }
         });
+        drop(tx);
         {
             let mut data_lock = self.data.lock().unwrap();
             data_lock.files.extend(rx.iter());
