@@ -1,5 +1,6 @@
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
 use std::{
+    cell::Cell,
     fs::File,
     io::{Read, Seek, Write},
     path::PathBuf,
@@ -29,16 +30,13 @@ pub enum CompressionType {
 pub struct ZipArchive<'a> {
     jobs: Mutex<Vec<ZipJob<'a>>>,
     data: Mutex<ZipData>,
-    compressed: Mutex<bool>,
+    compressed: Cell<bool>,
 }
 
 impl<'a> ZipArchive<'a> {
     /// Add file from silesystem. Will read on compression.
     pub fn add_file(&self, fs_path: impl Into<PathBuf>, archive_name: &str) {
-        {
-            let mut compressed = self.compressed.lock().unwrap();
-            *compressed = false
-        }
+        self.compressed.set(false);
         let name = archive_name.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::Filesystem(fs_path.into()),
@@ -52,10 +50,7 @@ impl<'a> ZipArchive<'a> {
 
     /// Add file from slice. Stores the data in archive struct for later compression.
     pub fn add_file_from_slice(&self, data: &'a [u8], archive_name: &str) {
-        {
-            let mut compressed = self.compressed.lock().unwrap();
-            *compressed = false
-        }
+        self.compressed.set(false);
         let data = data;
         let name = archive_name.to_string();
         let job = ZipJob {
@@ -70,10 +65,7 @@ impl<'a> ZipArchive<'a> {
 
     /// Add a directory entry
     pub fn add_directory(&self, archive_name: &str) {
-        {
-            let mut compressed = self.compressed.lock().unwrap();
-            *compressed = false
-        }
+        self.compressed.set(false);
         let name = archive_name.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory,
@@ -95,17 +87,15 @@ impl<'a> ZipArchive<'a> {
     /// Call to execute compression. Will be done automatically on write if files were added before
     /// write. Allows specifying amount of threads.
     pub fn compress_with_threads(&self, threads: usize) {
-        {
-            let mut compressed = self.compressed.lock().unwrap();
-            *compressed = true
-        }
+        self.compressed.set(true);
         let (tx, rx) = mpsc::channel();
+        let jobs = &self.jobs;
         std::thread::scope(|s| {
             for _ in 0..threads {
                 let thread_tx = tx.clone();
                 s.spawn(move || loop {
                     let job = {
-                        let mut job_lock = self.jobs.lock().unwrap();
+                        let mut job_lock = jobs.lock().unwrap();
                         if job_lock.is_empty() {
                             break;
                         } else {
@@ -133,7 +123,7 @@ impl<'a> ZipArchive<'a> {
     /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
     /// before write. Allows specifying amount of threads.
     pub fn write_with_threads<W: Write + Seek>(&self, writer: &mut W, threads: usize) {
-        if !*self.compressed.lock().unwrap() {
+        if !self.compressed.get() {
             self.compress_with_threads(threads)
         }
         let data_lock = self.data.lock().unwrap();
