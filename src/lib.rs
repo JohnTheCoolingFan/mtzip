@@ -32,7 +32,8 @@ pub struct ZipArchive<'a> {
 }
 
 impl<'a> ZipArchive<'a> {
-    /// Add file from filesystem. Will read on compression.
+    /// Add file from filesystem. Opens the file and reads data from it when
+    /// [`compress`](Self::compress) is called.
     pub fn add_file(&self, fs_path: impl Into<PathBuf>, archived_path: impl ToString) {
         self.compressed.set(false);
         let name = archived_path.to_string();
