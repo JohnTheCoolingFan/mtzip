@@ -41,7 +41,10 @@ use std::{
 };
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
+#[cfg(not(target_os = "windows"))]
 const VERSION_MADE_BY: u16 = 0x033F;
+#[cfg(target_os = "windows")]
+const VERSION_MADE_BY: u16 = 0x0A3F;
 
 const FILE_RECORD_SIGNATURE: u32 = 0x04034B50;
 const DIRECTORY_ENTRY_SIGNATURE: u32 = 0x02014B50;
@@ -249,7 +252,7 @@ impl ZipJob<'_> {
                     uncompressed_size,
                     filename: self.archive_path,
                     data,
-                    external_file_attributes: 0o100644 << 16,
+                    external_file_attributes: 0,
                 }
             }
             ZipJobOrigin::RawDataOwned(in_data) => {
@@ -266,7 +269,7 @@ impl ZipJob<'_> {
                     uncompressed_size,
                     filename: self.archive_path,
                     data,
-                    external_file_attributes: 0o100644 << 16,
+                    external_file_attributes: 0,
                 }
             }
         }
@@ -348,9 +351,9 @@ impl ZipFile {
         // compression type
         buf.write_all(&(self.compression_type as u16).to_le_bytes())
             .unwrap();
-        // Time // TODO
+        // Time // TODO // Can only be done by adding chrono dependency
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
-        // Date // TODO
+        // Date // TODO // Can only be done by adding chrono dependency
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // crc
         buf.write_all(&self.crc.to_le_bytes()).unwrap();
@@ -385,9 +388,9 @@ impl ZipFile {
         // compression type
         buf.write_all(&(self.compression_type as u16).to_le_bytes())
             .unwrap();
-        // Time // TODO
+        // Time // TODO // Can only be done by adding chrono dependency
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
-        // Date // TODO
+        // Date // TODO // Can only be done by adding chrono dependency
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // crc
         buf.write_all(&self.crc.to_le_bytes()).unwrap();
