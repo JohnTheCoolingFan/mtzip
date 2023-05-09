@@ -46,7 +46,9 @@ impl<'a> ZipArchive<'a> {
         }
     }
 
-    /// Add file from slice. Stores the data in archive struct for later compression.
+    /// Add file from slice. Data is stored in archive struct for later compression. May cause
+    /// problems with lifetimes, as the reference must be valid throughout the whoel existence of
+    /// [Self]
     pub fn add_file_from_slice(&self, data: &'a [u8], archive_name: &str) {
         self.compressed.set(false);
         let data = data;
