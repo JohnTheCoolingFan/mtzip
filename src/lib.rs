@@ -100,7 +100,7 @@ impl<'a> ZipArchive<'a> {
     }
 
     /// Add file from an owned data source. Data is stored in archive struct for later compression.
-    /// Helps avoiding lifetime hell at the cost of allocation in soem cases.
+    /// Helps avoiding lifetime hell at the cost of allocation in some cases.
     pub fn add_file_from_owned_data(&self, data: impl Into<Vec<u8>>, archived_path: impl ToString) {
         self.compressed.set(false);
         let name = archived_path.to_string();
