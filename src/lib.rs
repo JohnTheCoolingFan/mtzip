@@ -33,9 +33,9 @@ pub struct ZipArchive<'a> {
 
 impl<'a> ZipArchive<'a> {
     /// Add file from filesystem. Will read on compression.
-    pub fn add_file(&self, fs_path: impl Into<PathBuf>, archive_name: impl ToString) {
+    pub fn add_file(&self, fs_path: impl Into<PathBuf>, archived_path: impl ToString) {
         self.compressed.set(false);
-        let name = archive_name.to_string();
+        let name = archived_path.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::Filesystem(fs_path.into()),
             archive_path: name,
@@ -50,10 +50,10 @@ impl<'a> ZipArchive<'a> {
     /// problems with lifetimes, as the reference must be valid throughout the whoel existence of
     /// [`Self`]. This can be avoided using
     /// [`add_file_from_owned_data`](Self::add_file_from_owned_data) instead.
-    pub fn add_file_from_slice(&self, data: &'a [u8], archive_name: impl ToString) {
+    pub fn add_file_from_slice(&self, data: &'a [u8], archived_path: impl ToString) {
         self.compressed.set(false);
         let data = data;
-        let name = archive_name.to_string();
+        let name = archived_path.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::RawData(data),
             archive_path: name,
@@ -66,9 +66,9 @@ impl<'a> ZipArchive<'a> {
 
     /// Add file from an owned data source. Data is stored in archive struct for later compression.
     /// Helps avoiding lifetime hell at the cost of allocation in soem cases.
-    pub fn add_file_from_owned_data(&self, data: impl Into<Vec<u8>>, archive_name: impl ToString) {
+    pub fn add_file_from_owned_data(&self, data: impl Into<Vec<u8>>, archived_path: impl ToString) {
         self.compressed.set(false);
-        let name = archive_name.to_string();
+        let name = archived_path.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::RawDataOwned(data.into()),
             archive_path: name,
@@ -80,9 +80,9 @@ impl<'a> ZipArchive<'a> {
     }
 
     /// Add a directory entry
-    pub fn add_directory(&self, archive_name: impl ToString) {
+    pub fn add_directory(&self, archived_path: impl ToString) {
         self.compressed.set(false);
-        let name = archive_name.to_string();
+        let name = archived_path.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory,
             archive_path: name,
