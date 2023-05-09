@@ -1,6 +1,8 @@
 # mtzip
 
-MTZIP (Stands for Multi-Threaded ZIP) is a library for making zip archives utilising all the threads of the machine.
+MTZIP (Stands for Multi-Threaded ZIP) is a library for making zip archives
+while utilising all available performance available with multithreading. Amount
+of threads can be limited by the user.
 
 Example usage:
 
