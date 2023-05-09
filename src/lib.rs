@@ -31,6 +31,8 @@
 //! ```
 
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
+#[cfg(target_os = "windows")]
+use std::os::windows::fs::MetadataExt;
 use std::{
     cell::Cell,
     fs::File,
@@ -224,7 +226,7 @@ impl ZipJob<'_> {
                 let file_metadata = file.metadata().unwrap();
                 let uncompressed_size = file_metadata.len() as u32;
                 #[cfg(target_os = "windows")]
-                let extermal_file_attributes = Some(file_metadata.file_attributes());
+                let external_file_attributes = Some(file_metadata.file_attributes());
                 #[cfg(not(target_os = "windows"))]
                 let external_file_attributes = None; // I don't know where to get this on linux
                 let crc_reader = CrcReader::new(file);
