@@ -61,6 +61,21 @@ impl<'a> ZipArchive<'a> {
         }
     }
 
+    /// Add file from an owned data source. Data is stored in archive struct for later compression.
+    /// Helps avoiding lifetime hell at the cost of allocation in soem cases.
+    pub fn add_file_from_owned_data(&self, data: impl Into<Vec<u8>>, archive_name: &str) {
+        self.compressed.set(false);
+        let name = archive_name.to_string();
+        let job = ZipJob {
+            data_origin: ZipJobOrigin::RawDataOwned(data.into()),
+            archive_path: name,
+        };
+        {
+            let mut jobs = self.jobs.lock().unwrap();
+            jobs.push(job);
+        }
+    }
+
     /// Add a directory entry
     pub fn add_directory(&self, archive_name: &str) {
         self.compressed.set(false);
@@ -177,6 +192,23 @@ impl ZipJob<'_> {
                     external_file_attributes: 0o100644 << 16,
                 }
             }
+            ZipJobOrigin::RawDataOwned(in_data) => {
+                let uncompressed_size = in_data.len() as u32;
+                let crc_reader = CrcReader::<&[u8]>::new(in_data.as_ref());
+                let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
+                let mut data = Vec::new();
+                encoder.read_to_end(&mut data).unwrap();
+                let crc_reader = encoder.into_inner();
+                let crc = crc_reader.crc().sum();
+                ZipFile {
+                    compression_type: CompressionType::Deflate,
+                    crc,
+                    uncompressed_size,
+                    filename: self.archive_path,
+                    data,
+                    external_file_attributes: 0o100644 << 16,
+                }
+            }
         }
     }
 }
@@ -185,6 +217,7 @@ impl ZipJob<'_> {
 enum ZipJobOrigin<'a> {
     Filesystem(PathBuf),
     RawData(&'a [u8]),
+    RawDataOwned(Vec<u8>),
     Directory,
 }
 
