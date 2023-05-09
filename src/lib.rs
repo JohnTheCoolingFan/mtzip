@@ -35,6 +35,7 @@ use std::{
     cell::Cell,
     fs::File,
     io::{Read, Seek, Write},
+    num::NonZeroUsize,
     path::PathBuf,
     sync::{mpsc, Mutex},
 };
@@ -131,7 +132,9 @@ impl<'a> ZipArchive<'a> {
     /// between last compression and [`write`](Self::write). Automatically chooses amount of
     /// threads cpu has.
     pub fn compress(&self) {
-        let threads = std::thread::available_parallelism().unwrap().get();
+        let threads = std::thread::available_parallelism()
+            .map(NonZeroUsize::get)
+            .unwrap_or(1);
         self.compress_with_threads(threads);
     }
 
@@ -139,6 +142,14 @@ impl<'a> ZipArchive<'a> {
     /// [`write_with_threads`](Self::write_with_threads) if files were added between last
     /// compression and [`write`](Self::write). Allows specifying amount of threads that will be
     /// used.
+    ///
+    /// Example of getting amount of threads that this library uses in [`compress`](Self::compress):
+    ///
+    /// ```
+    /// let threads = std::thread::available_parallelism().map(NonZeroUsize::get).unwrap_or(1);
+    ///
+    /// zipper.compress_with_threads(threads);
+    /// ```
     pub fn compress_with_threads(&self, threads: usize) {
         self.compressed.set(true);
         let (tx, rx) = mpsc::channel();
@@ -178,6 +189,14 @@ impl<'a> ZipArchive<'a> {
     /// [`compress_with_threads`](Self::compress_with_threads) if files were added between last
     /// [`compress`](Self::compress) call and this call. Allows specifying amount of threads that
     /// will be used.
+    ///
+    /// Example of getting amount of threads that this library uses in [`write`](Self::write):
+    ///
+    /// ```
+    /// let threads = std::thread::available_parallelism().map(NonZeroUsize::get).unwrap_or(1);
+    ///
+    /// zipper.write_with_threads(threads);
+    /// ```
     pub fn write_with_threads<W: Write + Seek>(&self, writer: &mut W, threads: usize) {
         if !self.compressed.get() {
             self.compress_with_threads(threads)
