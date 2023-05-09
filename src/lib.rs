@@ -23,7 +23,8 @@ pub enum CompressionType {
     Deflate = 8,
 }
 
-/// Initialize using Default trait.
+/// Initialize using [`Default`] trait implementation. Uses interior mutabillity for inner state
+/// management.
 #[derive(Debug, Default)]
 pub struct ZipArchive<'a> {
     jobs: Mutex<Vec<ZipJob<'a>>>,
