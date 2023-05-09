@@ -229,8 +229,9 @@ impl ZipJob<'_> {
                 let external_file_attributes = None; // I don't know where to get this on linux
                 let crc_reader = CrcReader::new(file);
                 let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
-                let mut data = Vec::new();
+                let mut data = Vec::with_capacity(uncompressed_size as usize);
                 encoder.read_to_end(&mut data).unwrap();
+                data.shrink_to_fit();
                 let crc_reader = encoder.into_inner();
                 let crc = crc_reader.crc().sum();
 
@@ -247,8 +248,9 @@ impl ZipJob<'_> {
                 let uncompressed_size = in_data.len() as u32;
                 let crc_reader = CrcReader::new(in_data);
                 let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
-                let mut data = Vec::new();
+                let mut data = Vec::with_capacity(uncompressed_size as usize);
                 encoder.read_to_end(&mut data).unwrap();
+                data.shrink_to_fit();
                 let crc_reader = encoder.into_inner();
                 let crc = crc_reader.crc().sum();
                 ZipFile {
@@ -264,8 +266,9 @@ impl ZipJob<'_> {
                 let uncompressed_size = in_data.len() as u32;
                 let crc_reader = CrcReader::<&[u8]>::new(in_data.as_ref());
                 let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
-                let mut data = Vec::new();
+                let mut data = Vec::with_capacity(uncompressed_size as usize);
                 encoder.read_to_end(&mut data).unwrap();
+                data.shrink_to_fit();
                 let crc_reader = encoder.into_inner();
                 let crc = crc_reader.crc().sum();
                 ZipFile {
