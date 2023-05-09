@@ -14,8 +14,6 @@ const FILE_RECORD_SIGNATURE: u32 = 0x04034B50;
 const DIRECTORY_ENTRY_SIGNATURE: u32 = 0x02014B50;
 const END_OF_CENTRAL_DIR_SIGNATURE: u32 = 0x06054B50;
 
-// TODO: rayon integration
-
 /// Making archives with stored compression is not supported yet and only used on directory
 /// entries.
 #[repr(u16)]
@@ -34,7 +32,7 @@ pub struct ZipArchive<'a> {
 }
 
 impl<'a> ZipArchive<'a> {
-    /// Add file from silesystem. Will read on compression.
+    /// Add file from filesystem. Will read on compression.
     pub fn add_file(&self, fs_path: impl Into<PathBuf>, archive_name: &str) {
         self.compressed.set(false);
         let name = archive_name.to_string();
@@ -77,15 +75,15 @@ impl<'a> ZipArchive<'a> {
         }
     }
 
-    /// Call to execute compression. Will be done automatically on write if files were added before
-    /// write. Automatically chooses amount of threads cpu has.
+    /// Compress contents. Will be done automatically on [write] if files were added between last
+    /// compression and [write]. Automatically chooses amount of threads cpu has.
     pub fn compress(&self) {
         let threads = std::thread::available_parallelism().unwrap().get();
         self.compress_with_threads(threads);
     }
 
-    /// Call to execute compression. Will be done automatically on write if files were added before
-    /// write. Allows specifying amount of threads.
+    /// Compress contents. Will be done automatically on [write] if files were added between last
+    /// compression and [write]. Allows specifying amount of threads that will be used.
     pub fn compress_with_threads(&self, threads: usize) {
         self.compressed.set(true);
         let (tx, rx) = mpsc::channel();
@@ -113,15 +111,17 @@ impl<'a> ZipArchive<'a> {
         }
     }
 
-    /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
-    /// before write. Automatically chooses the amount of threads cpu has.
+    /// Write compressed data to a writer (usually a file). Executes [compress] if files were added
+    /// between last [compress] call and this call. Automatically chooses the amount of threads cpu
+    /// has.
     pub fn write<W: Write + Seek>(&self, writer: &mut W) {
         let threads = std::thread::available_parallelism().unwrap().get();
         self.write_with_threads(writer, threads);
     }
 
-    /// Write compressed data to a writer. Automatically calls [compress](ZipArchive::compress) if files were added
-    /// before write. Allows specifying amount of threads.
+    /// Write compressed data to a writer (usually a file). Executes [compress_with_threads] if
+    /// files were added between last [compress] call and this call. Allows specifying amount of
+    /// threads that will be used.
     pub fn write_with_threads<W: Write + Seek>(&self, writer: &mut W, threads: usize) {
         if !self.compressed.get() {
             self.compress_with_threads(threads)
