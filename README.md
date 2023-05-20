@@ -1,4 +1,4 @@
-[![crates.io](https://img.shields.io/crates/v/mtzip)](https://crates.io/crates/mtzip) [![crates.io](https://img.shields.io/crates/d/mtzip)](https://crates.io/crates/mtzip)
+[![crates.io](https://img.shields.io/crates/v/mtzip?style=flat)](https://crates.io/crates/mtzip) [![crates.io](https://img.shields.io/crates/d/mtzip?style=flat)](https://crates.io/crates/mtzip)
 
 # mtzip
 
