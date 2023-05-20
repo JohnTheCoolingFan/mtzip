@@ -1,3 +1,5 @@
+[![crates.io](https://img.shields.io/crates/v/mtzip)](https://crates.io/crates/mtzip) [![crates.io](https://img.shields.io/crates/d/mtzip)](https://crates.io/crates/mtzip)
+
 # mtzip
 
 MTZIP (Stands for Multi-Threaded ZIP) is a library for making zip archives
