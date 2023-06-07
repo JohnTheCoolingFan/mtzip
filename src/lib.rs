@@ -62,7 +62,11 @@ pub enum CompressionType {
 }
 
 /// Initialize using [`Default`] trait implementation. Uses interior mutabillity for inner state
-/// management.
+/// management (pending jobs, compressed data and keeping track of extra data needed to be
+/// compressed).
+///
+/// The lifetime indicates the lifetime of borrowed data supplied in
+/// [`add_file_from_slice`](ZipArchive::add_file_from_slice).
 #[derive(Debug, Default)]
 pub struct ZipArchive<'a> {
     jobs: Mutex<Vec<ZipJob<'a>>>,
@@ -119,7 +123,7 @@ impl<'a> ZipArchive<'a> {
         }
     }
 
-    /// Add a directory entry
+    /// Add a directory entry. All directories in the tree should be added.
     pub fn add_directory(&self, archived_path: impl ToString) {
         self.compressed.set(false);
         let name = archived_path.to_string();
@@ -133,9 +137,9 @@ impl<'a> ZipArchive<'a> {
         }
     }
 
-    /// Compress contents. Will be done automatically on [`write`](Self::write) if files were added
-    /// between last compression and [`write`](Self::write). Automatically chooses amount of
-    /// threads cpu has.
+    /// Compress contents. Will be done automatically on [`write`](Self::write) call if files were added
+    /// between last compression and [`write`](Self::write) call. Automatically chooses amount of
+    /// threads to use based on how much are available.
     pub fn compress(&self) {
         let threads = std::thread::available_parallelism()
             .map(NonZeroUsize::get)
@@ -144,7 +148,7 @@ impl<'a> ZipArchive<'a> {
     }
 
     /// Compress contents. Will be done automatically on
-    /// [`write_with_threads`](Self::write_with_threads) if files were added between last
+    /// [`write_with_threads`](Self::write_with_threads) call if files were added between last
     /// compression and [`write`](Self::write). Allows specifying amount of threads that will be
     /// used.
     ///
