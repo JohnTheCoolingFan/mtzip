@@ -34,7 +34,6 @@ use flate2::{read::DeflateEncoder, Compression, CrcReader};
 #[cfg(target_os = "windows")]
 use std::os::windows::fs::MetadataExt;
 use std::{
-    cell::Cell,
     fs::File,
     io::{Read, Seek, Write},
     num::NonZeroUsize,
@@ -62,26 +61,23 @@ pub enum CompressionType {
 }
 
 /// Initialize using [`Default`] trait implementation. Uses interior mutabillity for inner state
-/// management (pending jobs, compressed data and keeping track of extra data needed to be
-/// compressed).
+/// management (pending jobs and compressed data).
 ///
 /// The lifetime indicates the lifetime of borrowed data supplied in
-/// [`add_file_from_slice`](ZipArchive::add_file_from_slice).
+/// [`add_file_from_slice`](Self::add_file_from_slice).
 #[derive(Debug, Default)]
 pub struct ZipArchive<'a> {
     jobs: Mutex<Vec<ZipJob<'a>>>,
     data: Mutex<ZipData>,
-    compressed: Cell<bool>,
 }
 
 impl<'a> ZipArchive<'a> {
     /// Add file from filesystem. Opens the file and reads data from it when
     /// [`compress`](Self::compress) is called.
-    pub fn add_file(&self, fs_path: impl Into<PathBuf>, archived_path: impl ToString) {
-        self.compressed.set(false);
+    pub fn add_file(&self, fs_path: PathBuf, archived_path: impl ToString) {
         let name = archived_path.to_string();
         let job = ZipJob {
-            data_origin: ZipJobOrigin::Filesystem(fs_path.into()),
+            data_origin: ZipJobOrigin::Filesystem(fs_path),
             archive_path: name,
         };
         {
@@ -94,13 +90,10 @@ impl<'a> ZipArchive<'a> {
     /// problems with lifetimes, as the reference must be valid throughout the whoel existence of
     /// [`Self`]. This can be avoided using
     /// [`add_file_from_owned_data`](Self::add_file_from_owned_data) instead.
-    pub fn add_file_from_slice(&self, data: &'a [u8], archived_path: impl ToString) {
-        self.compressed.set(false);
-        let data = data;
-        let name = archived_path.to_string();
+    pub fn add_file_from_slice(&self, data: &'a [u8], archived_path: String) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::RawData(data),
-            archive_path: name,
+            archive_path: archived_path,
         };
         {
             let mut jobs = self.jobs.lock().unwrap();
@@ -110,12 +103,10 @@ impl<'a> ZipArchive<'a> {
 
     /// Add file from an owned data source. Data is stored in archive struct for later compression.
     /// Helps avoiding lifetime hell at the cost of allocation in some cases.
-    pub fn add_file_from_owned_data(&self, data: impl Into<Vec<u8>>, archived_path: impl ToString) {
-        self.compressed.set(false);
-        let name = archived_path.to_string();
+    pub fn add_file_from_owned_data(&self, data: Vec<u8>, archived_path: String) {
         let job = ZipJob {
-            data_origin: ZipJobOrigin::RawDataOwned(data.into()),
-            archive_path: name,
+            data_origin: ZipJobOrigin::RawDataOwned(data),
+            archive_path: archived_path,
         };
         {
             let mut jobs = self.jobs.lock().unwrap();
@@ -124,9 +115,8 @@ impl<'a> ZipArchive<'a> {
     }
 
     /// Add a directory entry. All directories in the tree should be added.
-    pub fn add_directory(&self, archived_path: impl ToString) {
-        self.compressed.set(false);
-        let name = archived_path.to_string();
+    pub fn add_directory(&self, archived_path: String) {
+        let name = archived_path;
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory,
             archive_path: name,
@@ -141,10 +131,7 @@ impl<'a> ZipArchive<'a> {
     /// between last compression and [`write`](Self::write) call. Automatically chooses amount of
     /// threads to use based on how much are available.
     pub fn compress(&self) {
-        let threads = std::thread::available_parallelism()
-            .map(NonZeroUsize::get)
-            .unwrap_or(1);
-        self.compress_with_threads(threads);
+        self.compress_with_threads(Self::get_threads());
     }
 
     /// Compress contents. Will be done automatically on
@@ -160,7 +147,6 @@ impl<'a> ZipArchive<'a> {
     /// zipper.compress_with_threads(threads);
     /// ```
     pub fn compress_with_threads(&self, threads: usize) {
-        self.compressed.set(true);
         let (tx, rx) = mpsc::channel();
         let jobs = &self.jobs;
         std::thread::scope(|s| {
@@ -190,10 +176,7 @@ impl<'a> ZipArchive<'a> {
     /// if files were added between last [`compress`](Self::compress) call and this call.
     /// Automatically chooses the amount of threads cpu has.
     pub fn write<W: Write + Seek>(&self, writer: &mut W) {
-        let threads = std::thread::available_parallelism()
-            .map(NonZeroUsize::get)
-            .unwrap_or(1);
-        self.write_with_threads(writer, threads);
+        self.write_with_threads(writer, Self::get_threads());
     }
 
     /// Write compressed data to a writer (usually a file). Executes
@@ -209,11 +192,17 @@ impl<'a> ZipArchive<'a> {
     /// zipper.write_with_threads(threads);
     /// ```
     pub fn write_with_threads<W: Write + Seek>(&self, writer: &mut W, threads: usize) {
-        if !self.compressed.get() {
+        if !self.jobs.lock().unwrap().is_empty() {
             self.compress_with_threads(threads)
         }
         let data_lock = self.data.lock().unwrap();
         data_lock.to_bytes(writer);
+    }
+
+    fn get_threads() -> usize {
+        std::thread::available_parallelism()
+            .map(NonZeroUsize::get)
+            .unwrap_or(1)
     }
 }
 
