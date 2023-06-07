@@ -190,7 +190,9 @@ impl<'a> ZipArchive<'a> {
     /// if files were added between last [`compress`](Self::compress) call and this call.
     /// Automatically chooses the amount of threads cpu has.
     pub fn write<W: Write + Seek>(&self, writer: &mut W) {
-        let threads = std::thread::available_parallelism().unwrap().get();
+        let threads = std::thread::available_parallelism()
+            .map(NonZeroUsize::get)
+            .unwrap_or(1);
         self.write_with_threads(writer, threads);
     }
 
