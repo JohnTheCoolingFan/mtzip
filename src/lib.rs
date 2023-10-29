@@ -30,6 +30,7 @@
 //! zipper.write(&mut file); // Amount of threads is chosen automatically
 //! ```
 
+use cfg_if::cfg_if;
 use crossbeam_queue::SegQueue;
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
 #[cfg(target_os = "windows")]
@@ -207,10 +208,18 @@ impl ZipJob<'_> {
                 let file = File::open(fs_path).unwrap();
                 let file_metadata = file.metadata().unwrap();
                 let uncompressed_size = file_metadata.len() as u32;
-                #[cfg(target_os = "windows")]
-                let external_file_attributes = Some(file_metadata.file_attributes());
-                #[cfg(not(target_os = "windows"))]
-                let external_file_attributes = None; // I don't know where to get this on linux
+                cfg_if! {
+                    if #[cfg(target_os = "windows")] {
+                        let external_file_attributes = file_metadata.file_attributes();
+                    } else if #[cfg(target_os = "unix")] {
+                        let external_file_attributes = file_metadata.permissions().mode();
+                    } else if #[cfg(target_os = "linux")] {
+                        use std::os::linux::fs::MetadataExt;
+                        let external_file_attributes = file_metadata.st_mode();
+                    } else {
+                        let external_file_attributes = 0o100644 << 16;
+                    }
+                }
                 let crc_reader = CrcReader::new(file);
                 let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
                 let mut data = Vec::with_capacity(uncompressed_size as usize);
@@ -225,7 +234,7 @@ impl ZipJob<'_> {
                     uncompressed_size,
                     filename: self.archive_path,
                     data,
-                    external_file_attributes: external_file_attributes.unwrap_or(0o100644 << 16),
+                    external_file_attributes,
                 }
             }
             ZipJobOrigin::RawData(in_data) => {

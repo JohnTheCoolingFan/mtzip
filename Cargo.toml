@@ -12,5 +12,6 @@ authors = ["Jonh The Cooling Fan <ivan8215145640@gmail.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+cfg-if = "1.0.0"
 crossbeam-queue = "0.3.8"
 flate2 = "1.0"
