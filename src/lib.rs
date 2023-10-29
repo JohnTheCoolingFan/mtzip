@@ -30,6 +30,7 @@
 //! zipper.write(&mut file); // Amount of threads is chosen automatically
 //! ```
 
+use crossbeam_queue::SegQueue;
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
 #[cfg(target_os = "windows")]
 use std::os::windows::fs::MetadataExt;
@@ -67,11 +68,15 @@ pub enum CompressionType {
 /// [`add_file_from_slice`](Self::add_file_from_slice).
 #[derive(Debug, Default)]
 pub struct ZipArchive<'a> {
-    jobs: Mutex<Vec<ZipJob<'a>>>,
+    jobs: SegQueue<ZipJob<'a>>,
     data: Mutex<ZipData>,
 }
 
 impl<'a> ZipArchive<'a> {
+    fn push_job(&self, job: ZipJob<'a>) {
+        self.jobs.push(job);
+    }
+
     /// Add file from filesystem. Opens the file and reads data from it when
     /// [`compress`](Self::compress) is called.
     pub fn add_file(&self, fs_path: PathBuf, archived_path: impl ToString) {
@@ -80,10 +85,7 @@ impl<'a> ZipArchive<'a> {
             data_origin: ZipJobOrigin::Filesystem(fs_path),
             archive_path: name,
         };
-        {
-            let mut jobs = self.jobs.lock().unwrap();
-            jobs.push(job);
-        }
+        self.push_job(job);
     }
 
     /// Add file from slice. Data is stored in archive struct for later compression. May cause
@@ -95,10 +97,7 @@ impl<'a> ZipArchive<'a> {
             data_origin: ZipJobOrigin::RawData(data),
             archive_path: archived_path,
         };
-        {
-            let mut jobs = self.jobs.lock().unwrap();
-            jobs.push(job);
-        }
+        self.push_job(job)
     }
 
     /// Add file from an owned data source. Data is stored in archive struct for later compression.
@@ -108,10 +107,7 @@ impl<'a> ZipArchive<'a> {
             data_origin: ZipJobOrigin::RawDataOwned(data),
             archive_path: archived_path,
         };
-        {
-            let mut jobs = self.jobs.lock().unwrap();
-            jobs.push(job);
-        }
+        self.push_job(job)
     }
 
     /// Add a directory entry. All directories in the tree should be added.
@@ -121,10 +117,7 @@ impl<'a> ZipArchive<'a> {
             data_origin: ZipJobOrigin::Directory,
             archive_path: name,
         };
-        {
-            let mut jobs = self.jobs.lock().unwrap();
-            jobs.push(job);
-        }
+        self.push_job(job)
     }
 
     /// Compress contents. Will be done automatically on [`write`](Self::write) call if files were added
@@ -152,16 +145,10 @@ impl<'a> ZipArchive<'a> {
         std::thread::scope(|s| {
             for _ in 0..threads {
                 let thread_tx = tx.clone();
-                s.spawn(move || loop {
-                    let job = {
-                        let mut job_lock = jobs.lock().unwrap();
-                        if job_lock.is_empty() {
-                            break;
-                        } else {
-                            job_lock.pop().unwrap()
-                        }
-                    };
-                    thread_tx.send(job.into_file()).unwrap();
+                s.spawn(move || {
+                    while let Some(job) = jobs.pop() {
+                        thread_tx.send(job.into_file()).unwrap();
+                    }
                 });
             }
         });
@@ -192,7 +179,7 @@ impl<'a> ZipArchive<'a> {
     /// zipper.write_with_threads(threads);
     /// ```
     pub fn write_with_threads<W: Write + Seek>(&self, writer: &mut W, threads: usize) {
-        if !self.jobs.lock().unwrap().is_empty() {
+        if !self.jobs.is_empty() {
             self.compress_with_threads(threads)
         }
         let data_lock = self.data.lock().unwrap();
