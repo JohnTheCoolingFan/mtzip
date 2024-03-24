@@ -56,6 +56,10 @@ const DIRECTORY_ENTRY_SIGNATURE: u32 = 0x02014B50;
 const END_OF_CENTRAL_DIR_SIGNATURE: u32 = 0x06054B50;
 const GENERAL_PURPOSE_BIT_FLAG: u16 = 1 << 11;
 
+// TODO: Use io Results, propagate errors to caller
+// TODO: Make another queue of jobs for simple records, such as directories
+// TODO: Last mod datetime
+
 /// Making archives with stored compression is not supported yet and only used on directory
 /// entries.
 #[repr(u16)]
