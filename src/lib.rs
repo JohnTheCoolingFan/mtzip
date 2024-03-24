@@ -54,6 +54,7 @@ const VERSION_MADE_BY: u16 = 0x0A3F;
 const FILE_RECORD_SIGNATURE: u32 = 0x04034B50;
 const DIRECTORY_ENTRY_SIGNATURE: u32 = 0x02014B50;
 const END_OF_CENTRAL_DIR_SIGNATURE: u32 = 0x06054B50;
+const GENERAL_PURPOSE_BIT_FLAG: u16 = 1 << 11;
 
 /// Making archives with stored compression is not supported yet and only used on directory
 /// entries.
@@ -479,7 +480,8 @@ impl ZipFile {
         buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())
             .unwrap();
         // general purpose bit flag
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&GENERAL_PURPOSE_BIT_FLAG.to_le_bytes())
+            .unwrap();
         // compression type
         buf.write_all(&(self.compression_type as u16).to_le_bytes())
             .unwrap();
@@ -516,7 +518,8 @@ impl ZipFile {
         buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())
             .unwrap();
         // general purpose bit flag
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&GENERAL_PURPOSE_BIT_FLAG.to_le_bytes())
+            .unwrap();
         // compression type
         buf.write_all(&(self.compression_type as u16).to_le_bytes())
             .unwrap();
