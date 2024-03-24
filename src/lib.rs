@@ -483,9 +483,9 @@ impl ZipFile {
         // compression type
         buf.write_all(&(self.compression_type as u16).to_le_bytes())
             .unwrap();
-        // Time // TODO // Can only be done by adding chrono dependency
+        // Last modification time // TODO
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
-        // Date // TODO // Can only be done by adding chrono dependency
+        // Last modification date // TODO
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // crc
         buf.write_all(&self.crc.to_le_bytes()).unwrap();
@@ -520,9 +520,9 @@ impl ZipFile {
         // compression type
         buf.write_all(&(self.compression_type as u16).to_le_bytes())
             .unwrap();
-        // Time // TODO // Can only be done by adding chrono dependency
+        // Last modification time // TODO
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
-        // Date // TODO // Can only be done by adding chrono dependency
+        // Last modification date // TODO
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // crc
         buf.write_all(&self.crc.to_le_bytes()).unwrap();
