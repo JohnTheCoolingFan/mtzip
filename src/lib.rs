@@ -478,7 +478,7 @@ impl ZipFile {
         // version needed to extract
         buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())
             .unwrap();
-        // flags
+        // general purpose bit flag
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // compression type
         buf.write_all(&(self.compression_type as u16).to_le_bytes())
@@ -515,7 +515,7 @@ impl ZipFile {
         // version needed to extract
         buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())
             .unwrap();
-        // flags
+        // general purpose bit flag
         buf.write_all(&0_u16.to_le_bytes()).unwrap();
         // compression type
         buf.write_all(&(self.compression_type as u16).to_le_bytes())
