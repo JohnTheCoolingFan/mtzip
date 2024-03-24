@@ -56,7 +56,7 @@ const END_OF_CENTRAL_DIR_SIGNATURE: u32 = 0x06054B50;
 /// Making archives with stored compression is not supported yet and only used on directory
 /// entries.
 #[repr(u16)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompressionType {
     Stored = 0,
     Deflate = 8,
