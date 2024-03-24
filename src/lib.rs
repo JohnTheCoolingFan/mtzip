@@ -423,7 +423,7 @@ struct ZipData {
 
 impl ZipData {
     fn to_bytes<W: Write + Seek>(&self, buf: &mut W) {
-        let mut offsets: Vec<u32> = Vec::new();
+        let mut offsets: Vec<u32> = Vec::with_capacity(self.files.len());
         // Zip file records
         for file in &self.files {
             offsets.push(buf.stream_position().unwrap() as u32);
