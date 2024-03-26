@@ -1,6 +1,6 @@
 use std::io::{Seek, Write};
 
-use super::zip_file::ZipFile;
+use super::file::ZipFile;
 
 const END_OF_CENTRAL_DIR_SIGNATURE: u32 = 0x06054B50;
 

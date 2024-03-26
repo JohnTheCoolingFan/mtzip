@@ -37,7 +37,7 @@ use std::{
     sync::{mpsc, Mutex},
 };
 
-use zip_archive_parts::{zip_data::ZipData, zip_job::ZipJob, ZipJobOrigin};
+use zip_archive_parts::{data::ZipData, job::ZipJob, ZipJobOrigin};
 
 pub mod level;
 mod zip_archive_parts;

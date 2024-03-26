@@ -6,7 +6,7 @@ use std::{
 use cfg_if::cfg_if;
 use flate2::{read::DeflateEncoder, Compression, CrcReader};
 
-use super::{zip_file::ZipFile, ZipJobOrigin};
+use super::{file::ZipFile, ZipJobOrigin};
 use crate::CompressionType;
 
 #[derive(Debug)]

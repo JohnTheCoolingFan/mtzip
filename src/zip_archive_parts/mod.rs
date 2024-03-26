@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-pub mod zip_data;
-pub mod zip_file;
-pub mod zip_job;
+pub mod data;
+pub mod file;
+pub mod job;
 
 #[derive(Debug)]
 pub enum ZipJobOrigin<'a> {
