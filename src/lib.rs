@@ -33,7 +33,7 @@
 #[cfg(target_os = "windows")]
 use std::os::windows::fs::MetadataExt;
 use std::{
-    fs::File,
+    fs::{File, Metadata},
     io::{Read, Seek, Write},
     num::NonZeroUsize,
     path::PathBuf,
@@ -222,18 +222,17 @@ struct ZipJob<'a> {
 }
 
 impl ZipJob<'_> {
-    fn file_attributes(file: &File) -> std::io::Result<u32> {
-        let metadata = file.metadata()?;
+    fn file_attributes(metadata: &Metadata) -> u32 {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
-                Ok(metadata.file_attributes())
+                metadata.file_attributes()
             } else if #[cfg(target_os = "linux")] {
                 use std::os::linux::fs::MetadataExt;
-                Ok(metadata.st_mode())
+                metadata.st_mode()
             } else if #[cfg(target_os = "unix")] {
-                Ok(metadata.permissions().mode())
+                metadata.permissions().mode()
             } else {
-                Ok(0o100644 << 16)
+                0o100644 << 16
             }
         }
     }
@@ -268,7 +267,7 @@ impl ZipJob<'_> {
                 let file = File::open(fs_path).unwrap();
                 let file_metadata = file.metadata().unwrap();
                 let uncompressed_size = file_metadata.len() as u32;
-                let external_file_attributes = Self::file_attributes(&file).unwrap();
+                let external_file_attributes = Self::file_attributes(&file_metadata);
                 Self::gen_file(
                     file,
                     uncompressed_size,
