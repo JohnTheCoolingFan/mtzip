@@ -1,5 +1,3 @@
-#[cfg(target_os = "windows")]
-use std::os::windows::fs::MetadataExt;
 use std::{
     fs::{File, Metadata},
     io::Read,
@@ -21,6 +19,7 @@ impl ZipJob<'_> {
     fn file_attributes(metadata: &Metadata) -> u32 {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
+                use std::os::windows::fs::MetadataExt;
                 metadata.file_attributes()
             } else if #[cfg(target_os = "linux")] {
                 use std::os::linux::fs::MetadataExt;
