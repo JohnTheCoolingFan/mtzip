@@ -51,8 +51,8 @@ const VERSION_MADE_BY: u16 = 0x033F;
 #[cfg(target_os = "windows")]
 const VERSION_MADE_BY: u16 = 0x0A3F;
 
-const FILE_RECORD_SIGNATURE: u32 = 0x04034B50;
-const DIRECTORY_ENTRY_SIGNATURE: u32 = 0x02014B50;
+const LOCAL_FILE_HEADER_SIGNATURE: u32 = 0x04034B50;
+const CENTRAL_FILE_HEADER_SIGNATURE: u32 = 0x02014B50;
 const END_OF_CENTRAL_DIR_SIGNATURE: u32 = 0x06054B50;
 const GENERAL_PURPOSE_BIT_FLAG: u16 = 1 << 11;
 
@@ -205,7 +205,7 @@ impl<'a> ZipArchive<'a> {
             self.compress_with_threads(threads)
         }
         let data_lock = self.data.lock().unwrap();
-        data_lock.to_bytes(writer);
+        data_lock.write(writer);
     }
 
     fn get_threads() -> usize {
@@ -307,17 +307,17 @@ struct ZipData {
 }
 
 impl ZipData {
-    fn to_bytes<W: Write + Seek>(&self, buf: &mut W) {
+    fn write<W: Write + Seek>(&self, buf: &mut W) {
         let mut offsets: Vec<u32> = Vec::with_capacity(self.files.len());
         // Zip file records
         for file in &self.files {
             offsets.push(buf.stream_position().unwrap() as u32);
-            file.to_bytes_filerecord(buf);
+            file.write_file_header_and_data(buf);
         }
         let central_dir_offset = buf.stream_position().unwrap() as u32;
         // Zip directory entries
         for (file, offset) in self.files.iter().zip(offsets.iter()) {
-            file.to_bytes_direntry(buf, *offset);
+            file.write_directory_entry(buf, *offset);
         }
 
         // End of central dir record
@@ -357,9 +357,10 @@ struct ZipFile {
 }
 
 impl ZipFile {
-    fn to_bytes_filerecord<W: Write + Seek>(&self, buf: &mut W) {
+    fn write_file_header_and_data<W: Write + Seek>(&self, buf: &mut W) {
         // signature
-        buf.write_all(&FILE_RECORD_SIGNATURE.to_le_bytes()).unwrap();
+        buf.write_all(&LOCAL_FILE_HEADER_SIGNATURE.to_le_bytes())
+            .unwrap();
         // version needed to extract
         buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())
             .unwrap();
@@ -392,9 +393,9 @@ impl ZipFile {
         buf.write_all(&self.data).unwrap();
     }
 
-    fn to_bytes_direntry<W: Write + Seek>(&self, buf: &mut W, local_header_offset: u32) {
+    fn write_directory_entry<W: Write + Seek>(&self, buf: &mut W, local_header_offset: u32) {
         // signature
-        buf.write_all(&DIRECTORY_ENTRY_SIGNATURE.to_le_bytes())
+        buf.write_all(&CENTRAL_FILE_HEADER_SIGNATURE.to_le_bytes())
             .unwrap();
         // version made by
         buf.write_all(&VERSION_MADE_BY.to_le_bytes()).unwrap();
