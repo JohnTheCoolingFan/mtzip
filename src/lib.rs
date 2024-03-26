@@ -45,6 +45,7 @@ mod zip_archive_parts;
 // TODO: Use io Results, propagate errors to caller
 // TODO: Make another queue of jobs for simple records, such as directories
 // TODO: Last mod datetime
+// TODO: Allow setting compression level
 
 /// Making archives with stored compression is not supported yet and only used on directory
 /// entries.
