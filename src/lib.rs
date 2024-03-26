@@ -46,6 +46,14 @@ mod zip_archive_parts;
 // TODO: Make another queue of jobs for simple records, such as directories
 // TODO: Last mod datetime
 // TODO: Allow setting compression level
+// TODO: Add support for modification datetime using extra fields. Following is a list of PKWARE
+// APPNOTE entries related to this:
+//      - 4.3.12 Central directory structure
+//      - 4.4.11 Extra field length
+//      - 4.4.28 Extra field
+//      - 4.5 Extensible data fields
+//      - 4.5.5 NTFS Extra Field
+//      - 4.5.7 UNIX Extra Field
 
 /// Making archives with stored compression is not supported yet and only used on directory
 /// entries.
