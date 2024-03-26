@@ -54,6 +54,7 @@ mod zip_archive_parts;
 //      - 4.5 Extensible data fields
 //      - 4.5.5 NTFS Extra Field
 //      - 4.5.7 UNIX Extra Field
+// Useful form of the appnote in markdown: https://github.com/Majored/rs-async-zip/blob/main/SPECIFICATION.md
 
 /// Making archives with stored compression is not supported yet and only used on directory
 /// entries.
