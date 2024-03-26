@@ -76,7 +76,7 @@ pub enum CompressionType {
 /// [`add_file_from_slice`](Self::add_file_from_slice).
 #[derive(Debug, Default)]
 pub struct ZipArchive<'a> {
-    jobs: Mutex<Vec<ZipJob<'a>>>,
+    jobs_queue: Mutex<Vec<ZipJob<'a>>>,
     data: Mutex<ZipData>,
 }
 
@@ -90,7 +90,7 @@ impl<'a> ZipArchive<'a> {
             archive_path: name,
         };
         {
-            let mut jobs = self.jobs.lock().unwrap();
+            let mut jobs = self.jobs_queue.lock().unwrap();
             jobs.push(job);
         }
     }
@@ -105,7 +105,7 @@ impl<'a> ZipArchive<'a> {
             archive_path: archived_path,
         };
         {
-            let mut jobs = self.jobs.lock().unwrap();
+            let mut jobs = self.jobs_queue.lock().unwrap();
             jobs.push(job);
         }
     }
@@ -118,7 +118,7 @@ impl<'a> ZipArchive<'a> {
             archive_path: archived_path,
         };
         {
-            let mut jobs = self.jobs.lock().unwrap();
+            let mut jobs = self.jobs_queue.lock().unwrap();
             jobs.push(job);
         }
     }
@@ -131,7 +131,7 @@ impl<'a> ZipArchive<'a> {
             archive_path: name,
         };
         {
-            let mut jobs = self.jobs.lock().unwrap();
+            let mut jobs = self.jobs_queue.lock().unwrap();
             jobs.push(job);
         }
     }
@@ -157,7 +157,7 @@ impl<'a> ZipArchive<'a> {
     /// ```
     pub fn compress_with_threads(&self, threads: usize) {
         let (tx, rx) = mpsc::channel();
-        let jobs = &self.jobs;
+        let jobs = &self.jobs_queue;
         std::thread::scope(|s| {
             for _ in 0..threads {
                 let thread_tx = tx.clone();
@@ -201,7 +201,7 @@ impl<'a> ZipArchive<'a> {
     /// zipper.write_with_threads(threads);
     /// ```
     pub fn write_with_threads<W: Write + Seek>(&self, writer: &mut W, threads: usize) {
-        if !self.jobs.lock().unwrap().is_empty() {
+        if !self.jobs_queue.lock().unwrap().is_empty() {
             self.compress_with_threads(threads)
         }
         let data_lock = self.data.lock().unwrap();
