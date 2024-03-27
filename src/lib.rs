@@ -51,16 +51,6 @@ mod zip_archive_parts;
 pub use zip_archive_parts::extra_fields;
 
 // TODO: Make another queue of jobs for simple records, such as directories
-// TODO: Last mod datetime
-// TODO: Add support for modification datetime using extra fields. Following is a list of PKWARE
-// APPNOTE entries related to this:
-//      - 4.3.12 Central directory structure
-//      - 4.4.11 Extra field length
-//      - 4.4.28 Extra field
-//      - 4.5 Extensible data fields
-//      - 4.5.5 NTFS Extra Field
-//      - 4.5.7 UNIX Extra Field
-// Useful form of the appnote in markdown: https://github.com/Majored/rs-async-zip/blob/main/SPECIFICATION.md
 
 /// Compression type for the file. Directories always use [`Stored`](CompressionType::Stored).
 /// Default is [`Deflate`](CompressionType::Deflate).
