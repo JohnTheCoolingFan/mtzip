@@ -34,9 +34,9 @@ impl ZipFile {
         buf.write_all(&GENERAL_PURPOSE_BIT_FLAG.to_le_bytes())?;
         // compression type
         buf.write_all(&(self.compression_type as u16).to_le_bytes())?;
-        // Last modification time // TODO
+        // Last modification time // moved to extra fields
         buf.write_all(&0_u16.to_le_bytes())?;
-        // Last modification date // TODO
+        // Last modification date // moved to extra fields
         buf.write_all(&0_u16.to_le_bytes())?;
         // crc
         buf.write_all(&self.crc.to_le_bytes())?;
@@ -73,9 +73,9 @@ impl ZipFile {
         buf.write_all(&GENERAL_PURPOSE_BIT_FLAG.to_le_bytes())?;
         // compression type
         buf.write_all(&(self.compression_type as u16).to_le_bytes())?;
-        // Last modification time // TODO
+        // Last modification time // moved to extra fields
         buf.write_all(&0_u16.to_le_bytes())?;
-        // Last modification date // TODO
+        // Last modification date // moved to extra fields
         buf.write_all(&0_u16.to_le_bytes())?;
         // crc
         buf.write_all(&self.crc.to_le_bytes())?;
