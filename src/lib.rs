@@ -89,12 +89,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
 
     /// Add file from filesystem. Opens the file and reads data from it when
     /// [`compress`](Self::compress) is called.
-    pub fn add_file_from_fs(
-        &self,
-        fs_path: impl Into<Cow<'p, Path>>,
-        archived_path: impl ToString,
-    ) {
-        let name = archived_path.to_string();
+    pub fn add_file_from_fs(&self, fs_path: impl Into<Cow<'p, Path>>, archived_path: String) {
+        let name = archived_path;
         let job = ZipJob {
             data_origin: ZipJobOrigin::Filesystem(fs_path.into()),
             archive_path: name,
