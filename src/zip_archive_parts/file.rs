@@ -113,7 +113,7 @@ impl ZipFile {
     }
 
     #[inline]
-    pub fn directory(mut name: String) -> Self {
+    pub fn directory(mut name: String, extra_fields: ExtraFields) -> Self {
         if !(name.ends_with('/') || name.ends_with('\\')) {
             name += "/"
         };
@@ -124,7 +124,7 @@ impl ZipFile {
             filename: name,
             data: vec![],
             external_file_attributes: 0o40755 << 16,
-            extra_fields: ExtraFields::default(),
+            extra_fields,
         }
     }
 }

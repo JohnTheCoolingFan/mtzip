@@ -22,8 +22,11 @@ pub enum ZipJobOrigin<'d, 'p> {
         data: Cow<'d, [u8]>,
         compression_level: CompressionLevel,
         compression_type: CompressionType,
+        extra_fields: ExtraFields,
     },
-    Directory,
+    Directory {
+        extra_fields: ExtraFields,
+    },
 }
 
 #[derive(Debug)]
@@ -86,7 +89,9 @@ impl ZipJob<'_, '_> {
 
     pub fn into_file(self) -> std::io::Result<ZipFile> {
         match self.data_origin {
-            ZipJobOrigin::Directory => Ok(ZipFile::directory(self.archive_path)),
+            ZipJobOrigin::Directory { extra_fields } => {
+                Ok(ZipFile::directory(self.archive_path, extra_fields))
+            }
             ZipJobOrigin::Filesystem {
                 path,
                 compression_level,
@@ -112,6 +117,7 @@ impl ZipJob<'_, '_> {
                 data,
                 compression_level,
                 compression_type,
+                extra_fields,
             } => {
                 debug_assert!(data.len() <= u32::MAX as usize);
                 let uncompressed_size = data.len() as u32;
@@ -122,7 +128,7 @@ impl ZipJob<'_, '_> {
                     None,
                     compression_level,
                     compression_type,
-                    ExtraFields::default(),
+                    extra_fields,
                 )
             }
         }

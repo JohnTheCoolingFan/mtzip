@@ -41,6 +41,7 @@ use std::{
 use level::CompressionLevel;
 use zip_archive_parts::{
     data::ZipData,
+    extra_fields::ExtraFields,
     job::{ZipJob, ZipJobOrigin},
 };
 
@@ -133,12 +134,14 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         archived_path: String,
         compression_level: Option<CompressionLevel>,
         compression_type: Option<CompressionType>,
+        extra_fields: Option<ExtraFields>,
     ) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::RawData {
                 data: data.into(),
                 compression_level: compression_level.unwrap_or(CompressionLevel::best()),
                 compression_type: compression_type.unwrap_or(CompressionType::Deflate),
+                extra_fields: extra_fields.unwrap_or_default(),
             },
             archive_path: archived_path,
         };
@@ -150,15 +153,47 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
 
     /// Add a directory entry. All directories in the tree should be added.
     pub fn add_directory(&self, archived_path: String) {
-        let name = archived_path;
         let job = ZipJob {
-            data_origin: ZipJobOrigin::Directory,
-            archive_path: name,
+            data_origin: ZipJobOrigin::Directory {
+                extra_fields: ExtraFields::default(),
+            },
+            archive_path: archived_path,
         };
         {
             let mut jobs = self.jobs_queue.lock().unwrap();
             jobs.push(job);
         }
+    }
+
+    /// Add a directory entry. All directories in the tree should be added.
+    pub fn add_directory_with_metadata(&self, archived_path: String, extra_fields: ExtraFields) {
+        let job = ZipJob {
+            data_origin: ZipJobOrigin::Directory { extra_fields },
+            archive_path: archived_path,
+        };
+        {
+            let mut jobs = self.jobs_queue.lock().unwrap();
+            jobs.push(job);
+        }
+    }
+
+    /// Add a directory entry. All directories in the tree should be added.
+    pub fn add_directory_with_metadata_from_fs<P: AsRef<Path>>(
+        &self,
+        archived_path: String,
+        fs_path: P,
+    ) -> std::io::Result<()> {
+        let metadata = std::fs::metadata(fs_path)?;
+        let extra_fields = ExtraFields::new_from_fs(&metadata);
+        let job = ZipJob {
+            data_origin: ZipJobOrigin::Directory { extra_fields },
+            archive_path: archived_path,
+        };
+        {
+            let mut jobs = self.jobs_queue.lock().unwrap();
+            jobs.push(job);
+        }
+        Ok(())
     }
 
     /// Compress contents. Will be done automatically on [`write`](Self::write) call if files were added
