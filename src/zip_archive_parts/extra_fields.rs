@@ -2,16 +2,23 @@ use std::{fs::Metadata, io::Write};
 
 use cfg_if::cfg_if;
 
+/// This is a structure containing [`ExtraField`]s associated with a file or directory in a zip
+/// file, mostly used for filesystem properties, and this is the only functionality implemented
+/// here.
+///
+/// The [`new_from_fs`](Self::new_from_fs) method will use the metadata the filesystem provides to
+/// construct the collection.
 #[derive(Debug, Clone, Default)]
 pub struct ExtraFields {
-    pub values: Vec<ExtraField>,
+    pub(crate) values: Vec<ExtraField>,
 }
 
 impl ExtraFields {
-    pub fn data_length(&self) -> u16 {
+    pub(crate) fn data_length(&self) -> u16 {
         self.values.iter().map(|f| 4 + f.field_size()).sum()
     }
 
+    /// Get the necessary values
     pub fn new_from_fs(metadata: &Metadata) -> Self {
         Self {
             values: ExtraField::new_from_fs(metadata).into_iter().collect(),
@@ -26,7 +33,10 @@ impl ExtraFields {
     }
 }
 
-// Other headers are not used and are simply ignored
+/// Extra data that can be attached to a file or directory. This library implements only the
+/// filesystem properties in NTFS or UNIX format.
+///
+/// Other headers are not used and are simply ignored
 #[derive(Debug, Clone, Copy)]
 pub enum ExtraField {
     Ntfs {
@@ -78,7 +88,7 @@ impl ExtraField {
         }
     }
 
-    pub fn write<W: Write>(self, writer: &mut W) -> std::io::Result<()> {
+    pub(crate) fn write<W: Write>(self, writer: &mut W) -> std::io::Result<()> {
         // Header ID
         writer.write_all(&self.header_id().to_le_bytes())?;
         // Field data size
@@ -125,6 +135,17 @@ impl ExtraField {
         Ok(())
     }
 
+    /// Read filesystem metadata to create a new value of [`ExtraField`].
+    ///
+    /// If no useful information can be obtained from filesystem metadata, `None` is returned. The
+    /// only case where this would happen if the target OS is not Windows, Linux or UNIX.
+    ///
+    /// # Linux and UNIX
+    ///
+    /// Due to differences between the data size rust API provides and what ZIP uses, some debug
+    /// mode runtime assertions are being made to make sure that the values lay in a sane range.
+    /// In the release build, panicking conversion is used for atime and mtime and higher part of
+    /// UID and GID is cut off.
     #[inline]
     pub fn new_from_fs(metadata: &Metadata) -> Option<Self> {
         cfg_if! {
@@ -141,7 +162,7 @@ impl ExtraField {
     }
 
     /// Due to differences between the data size rust API provides and what ZIP uses, some debug
-    /// mode runtime assertions are being made to make sure that the values lay in the sane region.
+    /// mode runtime assertions are being made to make sure that the values lay in a sane range.
     /// In the release build, panicking conversion is used for atime and mtime and higher part of
     /// UID and GID is cut off.
     #[cfg(target_os = "linux")]
@@ -171,7 +192,7 @@ impl ExtraField {
     }
 
     /// Due to differences between the data size rust API provides and what ZIP uses, some debug
-    /// mode runtime assertions are being made to make sure that the values lay in the sane region.
+    /// mode runtime assertions are being made to make sure that the values lay in a sane range.
     /// In the release build, panicking conversion is used for atime and mtime and higher part of
     /// UID and GID is cut off.
     #[cfg(target_os = "unix")]

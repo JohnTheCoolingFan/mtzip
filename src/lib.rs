@@ -99,6 +99,9 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// `compression_level` is ignored when [`CompressionType::Stored`] is used. Default value is
     /// [`CompressionLevel::best`].
+    ///
+    /// This method does not allow setting [`ExtraFields`] manually and instead uses the filesystem
+    /// to obtain them.
     pub fn add_file_from_fs(
         &self,
         fs_path: impl Into<Cow<'p, Path>>,
@@ -128,6 +131,9 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// `compression_level` is ignored when [`CompressionType::Stored`] is used. Default value is
     /// [`CompressionLevel::best`].
+    ///
+    /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
+    /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
     pub fn add_file_from_memory(
         &self,
         data: impl Into<Cow<'d, [u8]>>,
@@ -152,6 +158,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     }
 
     /// Add a directory entry. All directories in the tree should be added.
+    ///
+    /// This method does not add any filesystem properties to the entry.
     pub fn add_directory(&self, archived_path: String) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
@@ -166,6 +174,11 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     }
 
     /// Add a directory entry. All directories in the tree should be added.
+    ///
+    /// Use this method if you want to manually set filesystem properties of the directory.
+    ///
+    /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
+    /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
     pub fn add_directory_with_metadata(&self, archived_path: String, extra_fields: ExtraFields) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory { extra_fields },
@@ -178,6 +191,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     }
 
     /// Add a directory entry. All directories in the tree should be added.
+    ///
+    /// This method will take the metadata from filesystem and add it to the entry in the zip file.
     pub fn add_directory_with_metadata_from_fs<P: AsRef<Path>>(
         &self,
         archived_path: String,
