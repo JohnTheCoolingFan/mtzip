@@ -43,6 +43,7 @@ impl ZipJob<'_, '_> {
                 use std::os::linux::fs::MetadataExt;
                 metadata.st_mode()
             } else if #[cfg(target_os = "unix")] {
+                use std::os::unix::fs::MetadataExt;
                 metadata.permissions().mode()
             } else {
                 0o100644 << 16
