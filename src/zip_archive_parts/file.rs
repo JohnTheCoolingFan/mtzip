@@ -41,10 +41,12 @@ impl ZipFile {
         // crc
         buf.write_all(&self.crc.to_le_bytes())?;
         // Compressed size
+        debug_assert!(self.data.len() <= u32::MAX as usize);
         buf.write_all(&(self.data.len() as u32).to_le_bytes())?;
         // Uncompressed size
         buf.write_all(&self.uncompressed_size.to_le_bytes())?;
         // Filename size
+        debug_assert!(self.filename.len() <= u16::MAX as usize);
         buf.write_all(&(self.filename.len() as u16).to_le_bytes())?;
         // extra field size
         buf.write_all(&0_u16.to_le_bytes())?;
@@ -80,10 +82,12 @@ impl ZipFile {
         // crc
         buf.write_all(&self.crc.to_le_bytes())?;
         // Compressed size
+        debug_assert!(self.data.len() <= u32::MAX as usize);
         buf.write_all(&(self.data.len() as u32).to_le_bytes())?;
         // Uncompressed size
         buf.write_all(&self.uncompressed_size.to_le_bytes())?;
         // Filename size
+        debug_assert!(self.filename.len() <= u16::MAX as usize);
         buf.write_all(&(self.filename.len() as u16).to_le_bytes())?;
         // extra field size
         buf.write_all(&0_u16.to_le_bytes())?;

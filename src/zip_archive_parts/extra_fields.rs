@@ -142,11 +142,11 @@ impl ExtraField {
         use std::os::linux::fs::MetadataExt;
 
         debug_assert!(!metadata.st_atime().is_negative());
-        debug_assert!(metadata.st_atime() < u32::MAX.into());
+        debug_assert!(metadata.st_atime() <= u32::MAX.into());
         let atime = metadata.st_atime().try_into().unwrap();
 
         debug_assert!(!metadata.st_mtime().is_negative());
-        debug_assert!(metadata.st_mtime() < u32::MAX.into());
+        debug_assert!(metadata.st_mtime() <= u32::MAX.into());
         let mtime = metadata.st_mtime().try_into().unwrap();
 
         debug_assert!(metadata.st_uid() <= u16::MAX.into());
@@ -172,11 +172,11 @@ impl ExtraField {
         use std::os::unix::fs::MetadataExt;
 
         debug_assert!(!metadata.st_atime().is_negative());
-        debug_assert!(metadata.st_atime() < u32::MAX.into());
+        debug_assert!(metadata.st_atime() <= u32::MAX.into());
         let atime = metadata.st_atime().try_into().unwrap();
 
         debug_assert!(!metadata.st_mtime().is_negative());
-        debug_assert!(metadata.st_mtime() < u32::MAX.into());
+        debug_assert!(metadata.st_mtime() <= u32::MAX.into());
         let mtime = metadata.st_mtime().try_into().unwrap();
 
         debug_assert!(metadata.st_uid() <= u16::MAX.into());

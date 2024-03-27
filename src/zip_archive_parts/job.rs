@@ -94,6 +94,7 @@ impl ZipJob<'_, '_> {
             } => {
                 let file = File::open(path).unwrap();
                 let file_metadata = file.metadata().unwrap();
+                debug_assert!(file_metadata.len() <= u32::MAX.into());
                 let uncompressed_size = file_metadata.len() as u32;
                 let external_file_attributes = Self::attributes(&file_metadata);
                 let extra_fields = ExtraFields::new_from_fs(&file_metadata);
@@ -112,6 +113,7 @@ impl ZipJob<'_, '_> {
                 compression_level,
                 compression_type,
             } => {
+                debug_assert!(data.len() <= u32::MAX as usize);
                 let uncompressed_size = data.len() as u32;
                 Self::gen_file(
                     data.as_ref(),
