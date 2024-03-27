@@ -46,8 +46,10 @@ impl ZipFile {
         buf.write_all(&(self.filename.len() as u16).to_le_bytes())?;
         // extra field size
         buf.write_all(&0_u16.to_le_bytes())?;
+
         // Filename
         buf.write_all(self.filename.as_bytes())?;
+
         // Data
         buf.write_all(&self.data)?;
 
@@ -93,6 +95,7 @@ impl ZipFile {
         buf.write_all(&self.external_file_attributes.to_le_bytes())?;
         // relative offset of local header
         buf.write_all(&local_header_offset.to_le_bytes())?;
+
         // Filename
         buf.write_all(self.filename.as_bytes())?;
 
