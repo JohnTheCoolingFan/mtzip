@@ -69,8 +69,7 @@ pub enum CompressionType {
     Deflate = 8,
 }
 
-/// Initialize using [`Default`] trait implementation. Uses interior mutabillity for inner state
-/// management (pending jobs and compressed data).
+/// Uses interior mutabillity for inner state management (pending jobs and compressed data).
 ///
 /// The lifetime `'d` indicates the lifetime of borrowed data supplied in
 /// [`add_file_from_memory`](Self::add_file_from_memory).
