@@ -38,6 +38,7 @@ use std::{
     sync::{mpsc, Mutex},
 };
 
+use level::CompressionLevel;
 use zip_archive_parts::{data::ZipData, job::ZipJob, ZipJobOrigin};
 
 pub mod level;
@@ -88,10 +89,18 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
 
     /// Add file from filesystem. Opens the file and reads data from it when
     /// [`compress`](Self::compress) is called.
-    pub fn add_file_from_fs(&self, fs_path: impl Into<Cow<'p, Path>>, archived_path: String) {
+    pub fn add_file_from_fs(
+        &self,
+        fs_path: impl Into<Cow<'p, Path>>,
+        archived_path: String,
+        compression_level: Option<CompressionLevel>,
+    ) {
         let name = archived_path;
         let job = ZipJob {
-            data_origin: ZipJobOrigin::Filesystem(fs_path.into()),
+            data_origin: ZipJobOrigin::Filesystem {
+                path: fs_path.into(),
+                compression_level: compression_level.unwrap_or(CompressionLevel::best()),
+            },
             archive_path: name,
         };
         {
@@ -102,9 +111,17 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
 
     /// Add file from an owned data source. Data is stored in archive struct for later compression.
     /// Helps avoiding lifetime hell at the cost of allocation in some cases.
-    pub fn add_file_from_memory(&self, data: impl Into<Cow<'d, [u8]>>, archived_path: String) {
+    pub fn add_file_from_memory(
+        &self,
+        data: impl Into<Cow<'d, [u8]>>,
+        archived_path: String,
+        compression_level: Option<CompressionLevel>,
+    ) {
         let job = ZipJob {
-            data_origin: ZipJobOrigin::RawData(data.into()),
+            data_origin: ZipJobOrigin::RawData {
+                data: data.into(),
+                compression_level: compression_level.unwrap_or(CompressionLevel::best()),
+            },
             archive_path: archived_path,
         };
         {
