@@ -34,7 +34,7 @@ use std::{
     borrow::Cow,
     io::{Seek, Write},
     num::NonZeroUsize,
-    path::PathBuf,
+    path::Path,
     sync::{mpsc, Mutex},
 };
 
@@ -69,21 +69,28 @@ pub enum CompressionType {
 /// Initialize using [`Default`] trait implementation. Uses interior mutabillity for inner state
 /// management (pending jobs and compressed data).
 ///
-/// The lifetime indicates the lifetime of borrowed data supplied in
-/// [`add_file_from_slice`](Self::add_file_from_slice).
+/// The lifetime `'d` indicates the lifetime of borrowed data supplied in
+/// [`add_file_from_memory`](Self::add_file_from_memory).
+///
+/// The lifetime `'p` indicates the lifetime of borrowed [`Path`] supplied in
+/// [`add_file_from_fs`](Self::add_file_from_fs).
 #[derive(Debug, Default)]
-pub struct ZipArchive<'a> {
-    jobs_queue: Mutex<Vec<ZipJob<'a>>>,
+pub struct ZipArchive<'d, 'p> {
+    jobs_queue: Mutex<Vec<ZipJob<'d, 'p>>>,
     data: Mutex<ZipData>,
 }
 
-impl<'a> ZipArchive<'a> {
+impl<'d, 'p> ZipArchive<'d, 'p> {
     /// Add file from filesystem. Opens the file and reads data from it when
     /// [`compress`](Self::compress) is called.
-    pub fn add_file_from_fs(&self, fs_path: PathBuf, archived_path: impl ToString) {
+    pub fn add_file_from_fs(
+        &self,
+        fs_path: impl Into<Cow<'p, Path>>,
+        archived_path: impl ToString,
+    ) {
         let name = archived_path.to_string();
         let job = ZipJob {
-            data_origin: ZipJobOrigin::Filesystem(fs_path),
+            data_origin: ZipJobOrigin::Filesystem(fs_path.into()),
             archive_path: name,
         };
         {
@@ -94,7 +101,7 @@ impl<'a> ZipArchive<'a> {
 
     /// Add file from an owned data source. Data is stored in archive struct for later compression.
     /// Helps avoiding lifetime hell at the cost of allocation in some cases.
-    pub fn add_file_from_memory(&self, data: impl Into<Cow<'a, [u8]>>, archived_path: String) {
+    pub fn add_file_from_memory(&self, data: impl Into<Cow<'d, [u8]>>, archived_path: String) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::RawData(data.into()),
             archive_path: archived_path,

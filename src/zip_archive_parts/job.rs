@@ -10,12 +10,12 @@ use super::{file::ZipFile, ZipJobOrigin};
 use crate::CompressionType;
 
 #[derive(Debug)]
-pub struct ZipJob<'a> {
-    pub data_origin: ZipJobOrigin<'a>,
+pub struct ZipJob<'a, 'p> {
+    pub data_origin: ZipJobOrigin<'a, 'p>,
     pub archive_path: String,
 }
 
-impl ZipJob<'_> {
+impl ZipJob<'_, '_> {
     fn file_attributes(metadata: &Metadata) -> u32 {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
