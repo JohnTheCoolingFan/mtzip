@@ -60,17 +60,15 @@ impl ZipJob<'_, '_> {
     ) -> std::io::Result<ZipFile> {
         let mut crc_reader = CrcReader::new(source);
         let mut data = Vec::with_capacity(uncompressed_size as usize);
-        let crc_reader = match compression_type {
+        match compression_type {
             CompressionType::Deflate => {
-                let mut encoder = DeflateEncoder::new(crc_reader, compression_level.into());
+                let mut encoder = DeflateEncoder::new(&mut crc_reader, compression_level.into());
                 encoder.read_to_end(&mut data)?;
-                encoder.into_inner()
             }
             CompressionType::Stored => {
                 crc_reader.read_to_end(&mut data)?;
-                crc_reader
             }
-        };
+        }
         data.shrink_to_fit();
         let crc = crc_reader.crc().sum();
         Ok(ZipFile {
