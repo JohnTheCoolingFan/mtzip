@@ -81,6 +81,12 @@ pub struct ZipArchive<'d, 'p> {
 }
 
 impl<'d, 'p> ZipArchive<'d, 'p> {
+    /// Create an empty [`ZipArchive`]
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Add file from filesystem. Opens the file and reads data from it when
     /// [`compress`](Self::compress) is called.
     pub fn add_file_from_fs(
