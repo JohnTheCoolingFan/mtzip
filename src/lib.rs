@@ -46,7 +46,6 @@ mod zip_archive_parts;
 
 // TODO: Make another queue of jobs for simple records, such as directories
 // TODO: Last mod datetime
-// TODO: Allow setting compression level
 // TODO: Add support for modification datetime using extra fields. Following is a list of PKWARE
 // APPNOTE entries related to this:
 //      - 4.3.12 Central directory structure
