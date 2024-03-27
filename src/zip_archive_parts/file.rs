@@ -49,10 +49,12 @@ impl ZipFile {
         debug_assert!(self.filename.len() <= u16::MAX as usize);
         buf.write_all(&(self.filename.len() as u16).to_le_bytes())?;
         // extra field size
-        buf.write_all(&0_u16.to_le_bytes())?;
+        buf.write_all(&self.extra_fields.data_length().to_le_bytes())?;
 
         // Filename
         buf.write_all(self.filename.as_bytes())?;
+        // Extra field
+        self.extra_fields.write(buf)?;
 
         // Data
         buf.write_all(&self.data)?;
@@ -90,7 +92,7 @@ impl ZipFile {
         debug_assert!(self.filename.len() <= u16::MAX as usize);
         buf.write_all(&(self.filename.len() as u16).to_le_bytes())?;
         // extra field size
-        buf.write_all(&0_u16.to_le_bytes())?;
+        buf.write_all(&self.extra_fields.data_length().to_le_bytes())?;
         // comment size
         buf.write_all(&0_u16.to_le_bytes())?;
         // disk number start
@@ -104,6 +106,8 @@ impl ZipFile {
 
         // Filename
         buf.write_all(self.filename.as_bytes())?;
+        // Extra field
+        self.extra_fields.write(buf)?;
 
         Ok(())
     }

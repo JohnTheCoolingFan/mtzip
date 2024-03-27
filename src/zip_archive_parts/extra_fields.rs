@@ -17,6 +17,13 @@ impl ExtraFields {
             values: ExtraField::new_from_fs(metadata).into_iter().collect(),
         }
     }
+
+    pub(crate) fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        for field in &self.values {
+            field.write(writer)?;
+        }
+        Ok(())
+    }
 }
 
 // Other headers are not used and are simply ignored
