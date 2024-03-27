@@ -8,7 +8,7 @@ use std::{
 use cfg_if::cfg_if;
 use flate2::{read::DeflateEncoder, CrcReader};
 
-use super::file::ZipFile;
+use super::{extra_fields::ExtraFields, file::ZipFile};
 use crate::{level::CompressionLevel, CompressionType};
 
 #[derive(Debug)]
@@ -58,6 +58,7 @@ impl ZipJob<'_, '_> {
         attributes: Option<u32>,
         compression_level: CompressionLevel,
         compression_type: CompressionType,
+        extra_fields: ExtraFields,
     ) -> std::io::Result<ZipFile> {
         let mut crc_reader = CrcReader::new(source);
         let mut data = Vec::with_capacity(uncompressed_size as usize);
@@ -79,6 +80,7 @@ impl ZipJob<'_, '_> {
             filename: archive_path,
             data,
             external_file_attributes: attributes.unwrap_or(0),
+            extra_fields,
         })
     }
 
@@ -94,6 +96,7 @@ impl ZipJob<'_, '_> {
                 let file_metadata = file.metadata().unwrap();
                 let uncompressed_size = file_metadata.len() as u32;
                 let external_file_attributes = Self::attributes(&file_metadata);
+                let extra_fields = ExtraFields::new_from_fs(&file_metadata);
                 Self::gen_file(
                     file,
                     uncompressed_size,
@@ -101,6 +104,7 @@ impl ZipJob<'_, '_> {
                     Some(external_file_attributes),
                     compression_level,
                     compression_type,
+                    extra_fields,
                 )
             }
             ZipJobOrigin::RawData {
@@ -116,6 +120,7 @@ impl ZipJob<'_, '_> {
                     None,
                     compression_level,
                     compression_type,
+                    ExtraFields::default(),
                 )
             }
         }

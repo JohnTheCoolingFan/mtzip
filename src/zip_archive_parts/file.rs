@@ -1,5 +1,6 @@
 use std::io::{Seek, Write};
 
+use super::extra_fields::ExtraFields;
 use crate::CompressionType;
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
@@ -20,6 +21,7 @@ pub struct ZipFile {
     pub filename: String,
     pub data: Vec<u8>,
     pub external_file_attributes: u32,
+    pub extra_fields: ExtraFields,
 }
 
 impl ZipFile {
@@ -114,6 +116,7 @@ impl ZipFile {
             filename: name,
             data: vec![],
             external_file_attributes: 0o40755 << 16,
+            extra_fields: ExtraFields::default(),
         }
     }
 }

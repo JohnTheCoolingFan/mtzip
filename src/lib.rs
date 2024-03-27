@@ -47,6 +47,8 @@ use zip_archive_parts::{
 pub mod level;
 mod zip_archive_parts;
 
+pub use zip_archive_parts::extra_fields;
+
 // TODO: Make another queue of jobs for simple records, such as directories
 // TODO: Last mod datetime
 // TODO: Add support for modification datetime using extra fields. Following is a list of PKWARE
