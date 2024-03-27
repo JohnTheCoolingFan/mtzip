@@ -1,13 +1,28 @@
 use std::{
+    borrow::Cow,
     fs::{File, Metadata},
     io::Read,
+    path::Path,
 };
 
 use cfg_if::cfg_if;
 use flate2::{read::DeflateEncoder, CrcReader};
 
-use super::{file::ZipFile, ZipJobOrigin};
+use super::file::ZipFile;
 use crate::{level::CompressionLevel, CompressionType};
+
+#[derive(Debug)]
+pub enum ZipJobOrigin<'d, 'p> {
+    Filesystem {
+        path: Cow<'p, Path>,
+        compression_level: CompressionLevel,
+    },
+    RawData {
+        data: Cow<'d, [u8]>,
+        compression_level: CompressionLevel,
+    },
+    Directory,
+}
 
 #[derive(Debug)]
 pub struct ZipJob<'a, 'p> {

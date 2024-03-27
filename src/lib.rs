@@ -39,7 +39,10 @@ use std::{
 };
 
 use level::CompressionLevel;
-use zip_archive_parts::{data::ZipData, job::ZipJob, ZipJobOrigin};
+use zip_archive_parts::{
+    data::ZipData,
+    job::{ZipJob, ZipJobOrigin},
+};
 
 pub mod level;
 mod zip_archive_parts;
