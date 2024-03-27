@@ -34,7 +34,7 @@ pub struct ZipJob<'a, 'p> {
 
 impl ZipJob<'_, '_> {
     #[inline]
-    fn file_attributes(metadata: &Metadata) -> u32 {
+    fn attributes(metadata: &Metadata) -> u32 {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
                 use std::os::windows::fs::MetadataExt;
@@ -92,7 +92,7 @@ impl ZipJob<'_, '_> {
                 let file = File::open(path).unwrap();
                 let file_metadata = file.metadata().unwrap();
                 let uncompressed_size = file_metadata.len() as u32;
-                let external_file_attributes = Self::file_attributes(&file_metadata);
+                let external_file_attributes = Self::attributes(&file_metadata);
                 Self::gen_file(
                     file,
                     uncompressed_size,
