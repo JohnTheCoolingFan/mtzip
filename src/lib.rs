@@ -92,7 +92,7 @@ impl<'a> ZipArchive<'a> {
     }
 
     /// Add file from slice. Data is stored in archive struct for later compression. May cause
-    /// problems with lifetimes, as the reference must be valid throughout the whoel existence of
+    /// problems with lifetimes, as the reference must be valid throughout the whole existence of
     /// [`Self`]. This can be avoided using
     /// [`add_file_from_owned_data`](Self::add_file_from_owned_data) instead.
     pub fn add_file_from_slice(&self, data: &'a [u8], archived_path: String) {
