@@ -23,87 +23,80 @@ pub struct ZipFile {
 }
 
 impl ZipFile {
-    pub fn write_file_header_and_data<W: Write + Seek>(&self, buf: &mut W) {
+    pub fn write_file_header_and_data<W: Write + Seek>(&self, buf: &mut W) -> std::io::Result<()> {
         // signature
-        buf.write_all(&LOCAL_FILE_HEADER_SIGNATURE.to_le_bytes())
-            .unwrap();
+        buf.write_all(&LOCAL_FILE_HEADER_SIGNATURE.to_le_bytes())?;
         // version needed to extract
-        buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())
-            .unwrap();
+        buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())?;
         // general purpose bit flag
-        buf.write_all(&GENERAL_PURPOSE_BIT_FLAG.to_le_bytes())
-            .unwrap();
+        buf.write_all(&GENERAL_PURPOSE_BIT_FLAG.to_le_bytes())?;
         // compression type
-        buf.write_all(&(self.compression_type as u16).to_le_bytes())
-            .unwrap();
+        buf.write_all(&(self.compression_type as u16).to_le_bytes())?;
         // Last modification time // TODO
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&0_u16.to_le_bytes())?;
         // Last modification date // TODO
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&0_u16.to_le_bytes())?;
         // crc
-        buf.write_all(&self.crc.to_le_bytes()).unwrap();
+        buf.write_all(&self.crc.to_le_bytes())?;
         // Compressed size
-        buf.write_all(&(self.data.len() as u32).to_le_bytes())
-            .unwrap();
+        buf.write_all(&(self.data.len() as u32).to_le_bytes())?;
         // Uncompressed size
-        buf.write_all(&self.uncompressed_size.to_le_bytes())
-            .unwrap();
+        buf.write_all(&self.uncompressed_size.to_le_bytes())?;
         // Filename size
-        buf.write_all(&(self.filename.len() as u16).to_le_bytes())
-            .unwrap();
+        buf.write_all(&(self.filename.len() as u16).to_le_bytes())?;
         // extra field size
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&0_u16.to_le_bytes())?;
         // Filename
-        buf.write_all(self.filename.as_bytes()).unwrap();
+        buf.write_all(self.filename.as_bytes())?;
         // Data
-        buf.write_all(&self.data).unwrap();
+        buf.write_all(&self.data)?;
+
+        Ok(())
     }
 
-    pub fn write_directory_entry<W: Write + Seek>(&self, buf: &mut W, local_header_offset: u32) {
+    pub fn write_directory_entry<W: Write + Seek>(
+        &self,
+        buf: &mut W,
+        local_header_offset: u32,
+    ) -> std::io::Result<()> {
         // signature
-        buf.write_all(&CENTRAL_FILE_HEADER_SIGNATURE.to_le_bytes())
-            .unwrap();
+        buf.write_all(&CENTRAL_FILE_HEADER_SIGNATURE.to_le_bytes())?;
         // version made by
-        buf.write_all(&VERSION_MADE_BY.to_le_bytes()).unwrap();
+        buf.write_all(&VERSION_MADE_BY.to_le_bytes())?;
         // version needed to extract
-        buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())
-            .unwrap();
+        buf.write_all(&VERSION_NEEDED_TO_EXTRACT.to_le_bytes())?;
         // general purpose bit flag
-        buf.write_all(&GENERAL_PURPOSE_BIT_FLAG.to_le_bytes())
-            .unwrap();
+        buf.write_all(&GENERAL_PURPOSE_BIT_FLAG.to_le_bytes())?;
         // compression type
-        buf.write_all(&(self.compression_type as u16).to_le_bytes())
-            .unwrap();
+        buf.write_all(&(self.compression_type as u16).to_le_bytes())?;
         // Last modification time // TODO
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&0_u16.to_le_bytes())?;
         // Last modification date // TODO
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&0_u16.to_le_bytes())?;
         // crc
-        buf.write_all(&self.crc.to_le_bytes()).unwrap();
+        buf.write_all(&self.crc.to_le_bytes())?;
         // Compressed size
-        buf.write_all(&(self.data.len() as u32).to_le_bytes())
-            .unwrap();
+        buf.write_all(&(self.data.len() as u32).to_le_bytes())?;
         // Uncompressed size
-        buf.write_all(&self.uncompressed_size.to_le_bytes())
-            .unwrap();
+        buf.write_all(&self.uncompressed_size.to_le_bytes())?;
         // Filename size
-        buf.write_all(&(self.filename.len() as u16).to_le_bytes())
-            .unwrap();
+        buf.write_all(&(self.filename.len() as u16).to_le_bytes())?;
         // extra field size
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&0_u16.to_le_bytes())?;
         // comment size
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&0_u16.to_le_bytes())?;
         // disk number start
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&0_u16.to_le_bytes())?;
         // internal file attributes
-        buf.write_all(&0_u16.to_le_bytes()).unwrap();
+        buf.write_all(&0_u16.to_le_bytes())?;
         // external file attributes
-        buf.write_all(&self.external_file_attributes.to_le_bytes())
-            .unwrap();
+        buf.write_all(&self.external_file_attributes.to_le_bytes())?;
         // relative offset of local header
-        buf.write_all(&local_header_offset.to_le_bytes()).unwrap();
+        buf.write_all(&local_header_offset.to_le_bytes())?;
         // Filename
-        buf.write_all(self.filename.as_bytes()).unwrap();
+        buf.write_all(self.filename.as_bytes())?;
+
+        Ok(())
     }
 
     #[inline]

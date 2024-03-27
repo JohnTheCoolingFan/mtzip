@@ -43,7 +43,6 @@ use zip_archive_parts::{data::ZipData, job::ZipJob, ZipJobOrigin};
 pub mod level;
 mod zip_archive_parts;
 
-// TODO: Use io Results, propagate errors to caller
 // TODO: Make another queue of jobs for simple records, such as directories
 // TODO: Last mod datetime
 // TODO: Allow setting compression level
@@ -162,7 +161,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
                             job_lock.pop().unwrap()
                         }
                     };
-                    thread_tx.send(job.into_file()).unwrap();
+                    thread_tx.send(job.into_file().unwrap()).unwrap();
                 });
             }
         });
@@ -177,8 +176,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// if files were added between last [`compress`](Self::compress) call and this call.
     /// Automatically chooses the amount of threads cpu has.
     #[inline]
-    pub fn write<W: Write + Seek>(&self, writer: &mut W) {
-        self.write_with_threads(writer, Self::get_threads());
+    pub fn write<W: Write + Seek>(&self, writer: &mut W) -> std::io::Result<()> {
+        self.write_with_threads(writer, Self::get_threads())
     }
 
     /// Write compressed data to a writer (usually a file). Executes
@@ -193,12 +192,16 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// zipper.write_with_threads(threads);
     /// ```
-    pub fn write_with_threads<W: Write + Seek>(&self, writer: &mut W, threads: usize) {
+    pub fn write_with_threads<W: Write + Seek>(
+        &self,
+        writer: &mut W,
+        threads: usize,
+    ) -> std::io::Result<()> {
         if !self.jobs_queue.lock().unwrap().is_empty() {
             self.compress_with_threads(threads)
         }
         let data_lock = self.data.lock().unwrap();
-        data_lock.write(writer);
+        data_lock.write(writer)
     }
 
     fn get_threads() -> usize {

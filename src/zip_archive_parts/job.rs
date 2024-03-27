@@ -38,27 +38,27 @@ impl ZipJob<'_, '_> {
         uncompressed_size: u32,
         archive_path: String,
         attributes: Option<u32>,
-    ) -> ZipFile {
+    ) -> std::io::Result<ZipFile> {
         let crc_reader = CrcReader::new(source);
         let mut encoder = DeflateEncoder::new(crc_reader, Compression::new(9));
         let mut data = Vec::with_capacity(uncompressed_size as usize);
-        encoder.read_to_end(&mut data).unwrap();
+        encoder.read_to_end(&mut data)?;
         data.shrink_to_fit();
         let crc_reader = encoder.into_inner();
         let crc = crc_reader.crc().sum();
-        ZipFile {
+        Ok(ZipFile {
             compression_type: CompressionType::Deflate,
             crc,
             uncompressed_size,
             filename: archive_path,
             data,
             external_file_attributes: attributes.unwrap_or(0),
-        }
+        })
     }
 
-    pub fn into_file(self) -> ZipFile {
+    pub fn into_file(self) -> std::io::Result<ZipFile> {
         match self.data_origin {
-            ZipJobOrigin::Directory => ZipFile::directory(self.archive_path),
+            ZipJobOrigin::Directory => Ok(ZipFile::directory(self.archive_path)),
             ZipJobOrigin::Filesystem(fs_path) => {
                 let file = File::open(fs_path).unwrap();
                 let file_metadata = file.metadata().unwrap();
