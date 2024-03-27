@@ -128,6 +128,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// Compress contents. Will be done automatically on [`write`](Self::write) call if files were added
     /// between last compression and [`write`](Self::write) call. Automatically chooses amount of
     /// threads to use based on how much are available.
+    #[inline]
     pub fn compress(&self) {
         self.compress_with_threads(Self::get_threads());
     }
@@ -173,6 +174,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// Write compressed data to a writer (usually a file). Executes [`compress`](Self::compress)
     /// if files were added between last [`compress`](Self::compress) call and this call.
     /// Automatically chooses the amount of threads cpu has.
+    #[inline]
     pub fn write<W: Write + Seek>(&self, writer: &mut W) {
         self.write_with_threads(writer, Self::get_threads());
     }

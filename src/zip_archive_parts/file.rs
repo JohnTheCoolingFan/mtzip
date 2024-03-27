@@ -106,6 +106,7 @@ impl ZipFile {
         buf.write_all(self.filename.as_bytes()).unwrap();
     }
 
+    #[inline]
     pub fn directory(mut name: String) -> Self {
         if !(name.ends_with('/') || name.ends_with('\\')) {
             name += "/"

@@ -16,6 +16,7 @@ pub struct ZipJob<'a, 'p> {
 }
 
 impl ZipJob<'_, '_> {
+    #[inline]
     fn file_attributes(metadata: &Metadata) -> u32 {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
