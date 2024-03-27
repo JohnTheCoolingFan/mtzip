@@ -72,16 +72,7 @@ impl ZipJob<'_> {
             }
             ZipJobOrigin::RawData(in_data) => {
                 let uncompressed_size = in_data.len() as u32;
-                Self::gen_file(in_data, uncompressed_size, self.archive_path, None)
-            }
-            ZipJobOrigin::RawDataOwned(in_data) => {
-                let uncompressed_size = in_data.len() as u32;
-                Self::gen_file::<&[u8]>(
-                    in_data.as_ref(),
-                    uncompressed_size,
-                    self.archive_path,
-                    None,
-                )
+                Self::gen_file(in_data.as_ref(), uncompressed_size, self.archive_path, None)
             }
         }
     }

@@ -31,6 +31,7 @@
 //! ```
 
 use std::{
+    borrow::Cow,
     io::{Seek, Write},
     num::NonZeroUsize,
     path::PathBuf,
@@ -79,7 +80,7 @@ pub struct ZipArchive<'a> {
 impl<'a> ZipArchive<'a> {
     /// Add file from filesystem. Opens the file and reads data from it when
     /// [`compress`](Self::compress) is called.
-    pub fn add_file(&self, fs_path: PathBuf, archived_path: impl ToString) {
+    pub fn add_file_from_fs(&self, fs_path: PathBuf, archived_path: impl ToString) {
         let name = archived_path.to_string();
         let job = ZipJob {
             data_origin: ZipJobOrigin::Filesystem(fs_path),
@@ -91,26 +92,11 @@ impl<'a> ZipArchive<'a> {
         }
     }
 
-    /// Add file from slice. Data is stored in archive struct for later compression. May cause
-    /// problems with lifetimes, as the reference must be valid throughout the whole existence of
-    /// [`Self`]. This can be avoided using
-    /// [`add_file_from_owned_data`](Self::add_file_from_owned_data) instead.
-    pub fn add_file_from_slice(&self, data: &'a [u8], archived_path: String) {
-        let job = ZipJob {
-            data_origin: ZipJobOrigin::RawData(data),
-            archive_path: archived_path,
-        };
-        {
-            let mut jobs = self.jobs_queue.lock().unwrap();
-            jobs.push(job);
-        }
-    }
-
     /// Add file from an owned data source. Data is stored in archive struct for later compression.
     /// Helps avoiding lifetime hell at the cost of allocation in some cases.
-    pub fn add_file_from_owned_data(&self, data: Vec<u8>, archived_path: String) {
+    pub fn add_file_from_memory(&self, data: impl Into<Cow<'a, [u8]>>, archived_path: String) {
         let job = ZipJob {
-            data_origin: ZipJobOrigin::RawDataOwned(data),
+            data_origin: ZipJobOrigin::RawData(data.into()),
             archive_path: archived_path,
         };
         {
