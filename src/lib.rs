@@ -93,7 +93,10 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// Add file from filesystem. Opens the file and reads data from it when
     /// [`compress`](Self::compress) is called.
     ///
-    /// Default value for `compression_level` is [`CompressionLevel::best`]
+    /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
+    ///
+    /// Default value for `compression_level` is [`CompressionLevel::best`]. Ignored with
+    /// [`Stored`](CompressionType::Stored) compression type.
     pub fn add_file_from_fs(
         &self,
         fs_path: impl Into<Cow<'p, Path>>,
@@ -119,7 +122,10 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// Add file from an owned data source. Data is stored in archive struct for later compression.
     /// Helps avoiding lifetime hell at the cost of allocation in some cases.
     ///
-    /// Default value for `compression_level` is [`CompressionLevel::best`]
+    /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
+    ///
+    /// Default value for `compression_level` is [`CompressionLevel::best`]. Ignored with
+    /// [`Stored`](CompressionType::Stored) compression type.
     pub fn add_file_from_memory(
         &self,
         data: impl Into<Cow<'d, [u8]>>,
