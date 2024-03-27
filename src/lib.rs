@@ -59,12 +59,13 @@ mod zip_archive_parts;
 //      - 4.5.7 UNIX Extra Field
 // Useful form of the appnote in markdown: https://github.com/Majored/rs-async-zip/blob/main/SPECIFICATION.md
 
-/// Making archives with stored compression is not supported yet and only used on directory
-/// entries.
+/// Compression type for the file. Directories always use [`Stored`](CompressionType::Stored).
+/// Default is [`Deflate`](CompressionType::Deflate).
 #[repr(u16)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CompressionType {
     Stored = 0,
+    #[default]
     Deflate = 8,
 }
 
@@ -98,12 +99,14 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         fs_path: impl Into<Cow<'p, Path>>,
         archived_path: String,
         compression_level: Option<CompressionLevel>,
+        compression_type: Option<CompressionType>,
     ) {
         let name = archived_path;
         let job = ZipJob {
             data_origin: ZipJobOrigin::Filesystem {
                 path: fs_path.into(),
                 compression_level: compression_level.unwrap_or(CompressionLevel::best()),
+                compression_type: compression_type.unwrap_or(CompressionType::Deflate),
             },
             archive_path: name,
         };
@@ -122,11 +125,13 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         data: impl Into<Cow<'d, [u8]>>,
         archived_path: String,
         compression_level: Option<CompressionLevel>,
+        compression_type: Option<CompressionType>,
     ) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::RawData {
                 data: data.into(),
                 compression_level: compression_level.unwrap_or(CompressionLevel::best()),
+                compression_type: compression_type.unwrap_or(CompressionType::Deflate),
             },
             archive_path: archived_path,
         };

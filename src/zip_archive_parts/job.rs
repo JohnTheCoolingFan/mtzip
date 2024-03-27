@@ -16,10 +16,12 @@ pub enum ZipJobOrigin<'d, 'p> {
     Filesystem {
         path: Cow<'p, Path>,
         compression_level: CompressionLevel,
+        compression_type: CompressionType,
     },
     RawData {
         data: Cow<'d, [u8]>,
         compression_level: CompressionLevel,
+        compression_type: CompressionType,
     },
     Directory,
 }
@@ -54,13 +56,22 @@ impl ZipJob<'_, '_> {
         archive_path: String,
         attributes: Option<u32>,
         compression_level: CompressionLevel,
+        compression_type: CompressionType,
     ) -> std::io::Result<ZipFile> {
-        let crc_reader = CrcReader::new(source);
-        let mut encoder = DeflateEncoder::new(crc_reader, compression_level.into());
+        let mut crc_reader = CrcReader::new(source);
         let mut data = Vec::with_capacity(uncompressed_size as usize);
-        encoder.read_to_end(&mut data)?;
+        let crc_reader = match compression_type {
+            CompressionType::Deflate => {
+                let mut encoder = DeflateEncoder::new(crc_reader, compression_level.into());
+                encoder.read_to_end(&mut data)?;
+                encoder.into_inner()
+            }
+            CompressionType::Stored => {
+                crc_reader.read_to_end(&mut data)?;
+                crc_reader
+            }
+        };
         data.shrink_to_fit();
-        let crc_reader = encoder.into_inner();
         let crc = crc_reader.crc().sum();
         Ok(ZipFile {
             compression_type: CompressionType::Deflate,
@@ -78,6 +89,7 @@ impl ZipJob<'_, '_> {
             ZipJobOrigin::Filesystem {
                 path,
                 compression_level,
+                compression_type,
             } => {
                 let file = File::open(path).unwrap();
                 let file_metadata = file.metadata().unwrap();
@@ -89,11 +101,13 @@ impl ZipJob<'_, '_> {
                     self.archive_path,
                     Some(external_file_attributes),
                     compression_level,
+                    compression_type,
                 )
             }
             ZipJobOrigin::RawData {
                 data,
                 compression_level,
+                compression_type,
             } => {
                 let uncompressed_size = data.len() as u32;
                 Self::gen_file(
@@ -102,6 +116,7 @@ impl ZipJob<'_, '_> {
                     self.archive_path,
                     None,
                     compression_level,
+                    compression_type,
                 )
             }
         }
