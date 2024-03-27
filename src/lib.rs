@@ -95,8 +95,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
     ///
-    /// Default value for `compression_level` is [`CompressionLevel::best`]. Ignored with
-    /// [`Stored`](CompressionType::Stored) compression type.
+    /// `compression_level` is ignored when [`CompressionType::Stored`] is used. Default value is
+    /// [`CompressionLevel::best`].
     pub fn add_file_from_fs(
         &self,
         fs_path: impl Into<Cow<'p, Path>>,
@@ -124,8 +124,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
     ///
-    /// Default value for `compression_level` is [`CompressionLevel::best`]. Ignored with
-    /// [`Stored`](CompressionType::Stored) compression type.
+    /// `compression_level` is ignored when [`CompressionType::Stored`] is used. Default value is
+    /// [`CompressionLevel::best`].
     pub fn add_file_from_memory(
         &self,
         data: impl Into<Cow<'d, [u8]>>,
