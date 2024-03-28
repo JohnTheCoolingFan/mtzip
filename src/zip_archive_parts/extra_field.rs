@@ -1,3 +1,5 @@
+//! ZIP file extra field
+
 use std::{fs::Metadata, io::Write};
 
 use cfg_if::cfg_if;
