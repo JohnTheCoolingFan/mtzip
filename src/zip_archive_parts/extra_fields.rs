@@ -42,22 +42,33 @@ impl ExtraFields {
     }
 }
 
-/// Extra data that can be attached to a file or directory. This library implements only the
+/// Extra data that can be associated with a file or directory. This library only implements the
 /// filesystem properties in NTFS or UNIX format.
 ///
-/// Other headers are not used and are simply ignored
+/// The [`new_from_fs`](Self::new_from_fs) method will use the metadata the filesystem provides to
+/// construct the collection.
 #[derive(Debug, Clone, Copy)]
 pub enum ExtraField {
+    /// NTFS file properties.
     Ntfs {
+        /// Last modification timestamp
         mtime: u64,
+        /// Last access timestamp
         atime: u64,
+        /// File/directory creation timestamp
         ctime: u64,
     },
-    // Variable length data field is unused
+    /// UNIX file/directory properties.
+    ///
+    /// Variable length data field is unused and not implemented.
     Unix {
+        /// Last access timestamp
         atime: u32,
+        /// Last modification timestamp
         mtime: u32,
+        /// UID of the user account that owns the file/directory
         uid: u16,
+        /// GID of the group that owns the file/directory
         gid: u16,
     },
 }
@@ -144,10 +155,10 @@ impl ExtraField {
         Ok(())
     }
 
-    /// Read filesystem metadata to create a new value of [`ExtraField`].
-    ///
-    /// If no useful information can be obtained from filesystem metadata, `None` is returned. The
-    /// only case where this would happen if the target OS is not Windows, Linux or UNIX.
+    /// Read filesystem metadata to create a new value of [`ExtraField`]. The behavior depends on
+    /// the compilation target. If no useful information can be obtained from filesystem metadata,
+    /// `None` is returned. The only case where this would happen if the target OS is not Windows,
+    /// Linux or UNIX.
     ///
     /// # Linux and UNIX
     ///

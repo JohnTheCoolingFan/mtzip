@@ -90,7 +90,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// `compression_level` is ignored when [`CompressionType::Stored`] is used. Default value is
     /// [`CompressionLevel::best`].
     ///
-    /// This method does not allow setting [`ExtraFields`] manually and instead uses the filesystem
+    /// This method does not allow setting [`ExtraField`] manually and instead uses the filesystem
     /// to obtain them.
     pub fn add_file_from_fs(
         &self,
@@ -122,8 +122,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// `compression_level` is ignored when [`CompressionType::Stored`] is used. Default value is
     /// [`CompressionLevel::best`].
     ///
-    /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
-    /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
+    /// `extra_field` parameter allows setting extra attributes. Currently it supports NTFS and
+    /// UNIX filesystem attributes, see more in [`ExtraField`] description.
     pub fn add_file_from_memory(
         &self,
         data: impl Into<Cow<'d, [u8]>>,
@@ -149,7 +149,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
 
     /// Add a directory entry. All directories in the tree should be added.
     ///
-    /// This method does not add any filesystem properties to the entry.
+    /// This method does not asssociate any filesystem properties to the entry.
     pub fn add_directory(&self, archived_path: String) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
@@ -167,8 +167,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// Use this method if you want to manually set filesystem properties of the directory.
     ///
-    /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
-    /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
+    /// `extra_field` parameter allows setting extra attributes. Currently it supports NTFS and
+    /// UNIX filesystem attributes, see more in [`ExtraField`] description.
     pub fn add_directory_with_metadata(&self, archived_path: String, extra_field: ExtraField) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
