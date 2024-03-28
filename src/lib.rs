@@ -62,6 +62,8 @@ pub enum CompressionType {
     Deflate = 8,
 }
 
+/// Structure that holds the current state of ZIP archive creation.
+///
 /// Uses interior mutabillity for inner state management (pending jobs and compressed data).
 ///
 /// The lifetime `'d` indicates the lifetime of borrowed data supplied in
