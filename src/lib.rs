@@ -78,6 +78,11 @@ pub struct ZipArchive<'d, 'p> {
 }
 
 impl<'d, 'p> ZipArchive<'d, 'p> {
+    fn push_job(&self, job: ZipJob<'d, 'p>) {
+        let mut jobs = self.jobs_queue.lock().unwrap();
+        jobs.push(job);
+    }
+
     /// Create an empty [`ZipArchive`]
     #[inline]
     pub fn new() -> Self {
@@ -109,10 +114,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             },
             archive_path: archived_path,
         };
-        {
-            let mut jobs = self.jobs_queue.lock().unwrap();
-            jobs.push(job);
-        }
+        self.push_job(job);
     }
 
     /// Add file from an owned data source. Data is stored in archive struct for later compression.
@@ -142,10 +144,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             },
             archive_path: archived_path,
         };
-        {
-            let mut jobs = self.jobs_queue.lock().unwrap();
-            jobs.push(job);
-        }
+        self.push_job(job);
     }
 
     /// Add a directory entry. All directories in the tree should be added.
@@ -158,10 +157,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             },
             archive_path: archived_path,
         };
-        {
-            let mut jobs = self.jobs_queue.lock().unwrap();
-            jobs.push(job);
-        }
+        self.push_job(job);
     }
 
     /// Add a directory entry. All directories in the tree should be added.
@@ -177,10 +173,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             },
             archive_path: archived_path,
         };
-        {
-            let mut jobs = self.jobs_queue.lock().unwrap();
-            jobs.push(job);
-        }
+        self.push_job(job);
     }
 
     /// Add a directory entry. All directories in the tree should be added.
@@ -197,10 +190,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             data_origin: ZipJobOrigin::Directory { extra_fields },
             archive_path: archived_path,
         };
-        {
-            let mut jobs = self.jobs_queue.lock().unwrap();
-            jobs.push(job);
-        }
+        self.push_job(job);
         Ok(())
     }
 
