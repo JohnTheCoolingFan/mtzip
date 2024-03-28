@@ -1,5 +1,7 @@
 use std::io::{Seek, Write};
 
+use cfg_if::cfg_if;
+
 use super::extra_field::ExtraFields;
 use crate::CompressionType;
 
@@ -13,6 +15,16 @@ const LOCAL_FILE_HEADER_SIGNATURE: u32 = 0x04034B50;
 const CENTRAL_FILE_HEADER_SIGNATURE: u32 = 0x02014B50;
 const GENERAL_PURPOSE_BIT_FLAG: u16 = 1 << 11;
 
+#[cfg(any(target_os = "linux", unix))]
+pub(crate) const DEFAULT_UNIX_FILE_ATTRS: u32 = 0o100644 << 16;
+#[cfg(any(target_os = "linux", unix))]
+pub(crate) const DEFAULT_UNIX_DIR_ATTRS: u32 = 0o040755 << 16;
+
+#[cfg(target_os = "windows")]
+pub(crate) const DEFAULT_WINDOWS_FILE_ATTRS: u32 = 128 << 16;
+#[cfg(target_os = "windows")]
+pub(crate) const DEFAULT_WINDOWS_DIR_ATTRS: u32 = 16 << 16;
+
 #[derive(Debug)]
 pub struct ZipFile {
     pub compression_type: CompressionType,
@@ -25,6 +37,26 @@ pub struct ZipFile {
 }
 
 impl ZipFile {
+    pub(crate) fn default_attrs(is_dir: bool) -> u32 {
+        cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                if is_dir {
+                    DEFAULT_WINDOWS_DIR_ATTRS
+                } else {
+                    DEFAULT_WINDOWS_FILE_ATTRS
+                }
+            } else if #[cfg(any(target_os = "linux", unix))] {
+                if is_dir {
+                    DEFAULT_UNIX_DIR_ATTRS
+                } else {
+                    DEFAULT_UNIX_FILE_ATTRS
+                }
+            } else {
+                0
+            }
+        }
+    }
+
     pub fn write_file_header_and_data<W: Write + Seek>(&self, buf: &mut W) -> std::io::Result<()> {
         // signature
         buf.write_all(&LOCAL_FILE_HEADER_SIGNATURE.to_le_bytes())?;
@@ -123,7 +155,7 @@ impl ZipFile {
             uncompressed_size: 0,
             filename: name,
             data: vec![],
-            external_file_attributes: 0o40755 << 16,
+            external_file_attributes: Self::default_attrs(true),
             extra_fields,
         }
     }

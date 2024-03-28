@@ -49,7 +49,11 @@ impl ZipJob<'_, '_> {
                 use std::os::unix::fs::MetadataExt;
                 metadata.permissions().mode() << 16
             } else {
-                0o100644 << 16
+                if metadata.is_dir() {
+                    DEFAULT_UNIX_DIR_ATTRS
+                } else {
+                    DEFAULT_UNIX_FILE_ATTRS
+                }
             }
         }
     }
@@ -82,7 +86,7 @@ impl ZipJob<'_, '_> {
             uncompressed_size,
             filename: archive_path,
             data,
-            external_file_attributes: attributes.unwrap_or(0),
+            external_file_attributes: attributes.unwrap_or(ZipFile::default_attrs(false)),
             extra_fields,
         })
     }
