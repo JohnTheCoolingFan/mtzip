@@ -101,14 +101,13 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         compression_level: Option<CompressionLevel>,
         compression_type: Option<CompressionType>,
     ) {
-        let name = archived_path;
         let job = ZipJob {
             data_origin: ZipJobOrigin::Filesystem {
                 path: fs_path.into(),
                 compression_level: compression_level.unwrap_or(CompressionLevel::best()),
                 compression_type: compression_type.unwrap_or(CompressionType::Deflate),
             },
-            archive_path: name,
+            archive_path: archived_path,
         };
         {
             let mut jobs = self.jobs_queue.lock().unwrap();
