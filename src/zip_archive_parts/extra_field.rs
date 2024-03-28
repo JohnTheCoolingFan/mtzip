@@ -10,7 +10,7 @@ use cfg_if::cfg_if;
 ///
 /// The [`new_from_fs`](Self::new_from_fs) method will use the metadata the filesystem provides to
 /// construct the collection.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct ExtraFields {
     pub(crate) values: Vec<ExtraField>,
 }
@@ -50,7 +50,7 @@ impl ExtraFields {
 ///
 /// The [`new_from_fs`](Self::new_from_fs) method will use the metadata the filesystem provides to
 /// construct the collection.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtraField {
     /// NTFS file properties.
     Ntfs {
