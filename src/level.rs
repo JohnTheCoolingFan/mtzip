@@ -3,6 +3,8 @@ use std::error::Error;
 
 use flate2::Compression;
 
+/// Compression level that should be used when compressing a file or data. Current compression
+/// providers support only levels from 0 to 9, so these are the only ones being supported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CompressionLevel(u8);
 
