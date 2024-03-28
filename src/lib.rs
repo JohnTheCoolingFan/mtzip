@@ -101,8 +101,9 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         Self::default()
     }
 
-    /// Add file from filesystem. Opens the file and reads data from it when
-    /// [`compress`](Self::compress) is called.
+    /// Add file from filesystem.
+    ///
+    /// Opens the file and reads data from it when [`compress`](Self::compress) is called.
     ///
     /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
     ///
@@ -129,8 +130,10 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         self.push_job(job);
     }
 
-    /// Add file from an owned data source. Data is stored in archive struct for later compression.
-    /// Helps avoiding lifetime hell at the cost of allocation in some cases.
+    /// Add file from an owned data source.
+    ///
+    /// Data is stored in archive struct for later compression. Helps avoiding lifetime hell at the
+    /// cost of allocation in some cases.
     ///
     /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
     ///
@@ -161,9 +164,10 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         self.push_job(job);
     }
 
-    /// Add a directory entry. All directories in the tree should be added.
+    /// Add a directory entry.
     ///
-    /// This method does not asssociate any filesystem properties to the entry.
+    /// All directories in the tree should be added. This method does not asssociate any filesystem
+    /// properties to the entry.
     pub fn add_directory(&self, archived_path: String, attributes: Option<u16>) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
@@ -176,9 +180,10 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         self.push_file(file);
     }
 
-    /// Add a directory entry. All directories in the tree should be added.
+    /// Add a directory entry.
     ///
-    /// Use this method if you want to manually set filesystem properties of the directory.
+    /// All directories in the tree should be added. Use this method if you want to manually set
+    /// filesystem properties of the directory.
     ///
     /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
     /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
@@ -199,9 +204,10 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         self.push_file(file);
     }
 
-    /// Add a directory entry. All directories in the tree should be added.
+    /// Add a directory entry.
     ///
-    /// This method will take the metadata from filesystem and add it to the entry in the zip file.
+    /// All directories in the tree should be added. This method will take the metadata from
+    /// filesystem and add it to the entry in the zip file.
     pub fn add_directory_with_metadata_from_fs<P: AsRef<Path>>(
         &self,
         archived_path: String,
