@@ -42,6 +42,7 @@ use level::CompressionLevel;
 use zip_archive_parts::{
     data::ZipData,
     extra_field::{ExtraField, ExtraFields},
+    file::ZipFile,
     job::{ZipJob, ZipJobOrigin},
 };
 
@@ -81,6 +82,11 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     fn push_job(&self, job: ZipJob<'d, 'p>) {
         let mut jobs = self.jobs_queue.lock().unwrap();
         jobs.push(job);
+    }
+
+    fn push_file(&self, file: ZipFile) {
+        let mut data_lock = self.data.lock().unwrap();
+        data_lock.files.push(file);
     }
 
     /// Create an empty [`ZipArchive`]
@@ -157,7 +163,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             },
             archive_path: archived_path,
         };
-        self.push_job(job);
+        let file = job.into_file().expect("No failing code path");
+        self.push_file(file);
     }
 
     /// Add a directory entry. All directories in the tree should be added.
@@ -173,7 +180,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             },
             archive_path: archived_path,
         };
-        self.push_job(job);
+        let file = job.into_file().expect("No failing code path");
+        self.push_file(file);
     }
 
     /// Add a directory entry. All directories in the tree should be added.
@@ -190,7 +198,8 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             data_origin: ZipJobOrigin::Directory { extra_fields },
             archive_path: archived_path,
         };
-        self.push_job(job);
+        let file = job.into_file().expect("No failing code path");
+        self.push_file(file);
         Ok(())
     }
 
