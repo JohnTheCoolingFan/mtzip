@@ -16,20 +16,98 @@ pub(crate) struct ExtraFields {
 }
 
 impl ExtraFields {
-    pub(crate) fn data_length(&self) -> u16 {
-        self.values.iter().map(|f| 4 + f.field_size()).sum()
+    pub(crate) fn data_length(&self, central_header: bool) -> u16 {
+        self.values
+            .iter()
+            .map(|f| 4 + f.field_size(central_header))
+            .sum()
     }
 
-    /// Get the necessary values
     pub fn new_from_fs(metadata: &Metadata) -> Self {
-        Self {
-            values: ExtraField::new_from_fs(metadata).into_iter().collect(),
+        cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                Self::new_windows(metadata)
+            } else if #[cfg(target_os = "linux")] {
+                Self::new_linux(metadata)
+            } else if #[cfg(unix)] {
+                Self::new_unix(metadata)
+            } else {
+                Self::default()
+            }
         }
     }
 
-    pub(crate) fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+    #[cfg(target_os = "linux")]
+    fn new_linux(metadata: &Metadata) -> Self {
+        use std::os::linux::fs::MetadataExt;
+
+        let mod_time = Some(metadata.st_mtime() as i32);
+        let ac_time = Some(metadata.st_atime() as i32);
+        let cr_time = Some(metadata.st_ctime() as i32);
+
+        let uid = metadata.st_uid();
+        let gid = metadata.st_gid();
+
+        Self {
+            values: vec![
+                ExtraField::UnixExtendedTimestamp {
+                    mod_time,
+                    ac_time,
+                    cr_time,
+                },
+                ExtraField::UnixAttrs { uid, gid },
+            ],
+        }
+    }
+
+    #[cfg(unix)]
+    #[allow(dead_code)]
+    fn new_unix(metadata: &Metadata) -> Self {
+        use std::os::unix::fs::MetadataExt;
+
+        let mod_time = Some(metadata.mtime() as i32);
+        let ac_time = Some(metadata.atime() as i32);
+        let cr_time = Some(metadata.ctime() as i32);
+
+        let uid = metadata.uid();
+        let gid = metadata.gid();
+
+        Self {
+            values: vec![
+                ExtraField::UnixExtendedTimestamp {
+                    mod_time,
+                    ac_time,
+                    cr_time,
+                },
+                ExtraField::UnixAttrs { uid, gid },
+            ],
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn new_windows(metadata: &Metadata) -> Self {
+        use std::os::windows::fs::MetadataExt;
+
+        let mtime = metadata.last_write_time();
+        let atime = metadata.last_access_time();
+        let ctime = metadata.creation_time();
+
+        Self {
+            values: vec![ExtraField::Ntfs {
+                mtime,
+                atime,
+                ctime,
+            }],
+        }
+    }
+
+    pub(crate) fn write<W: Write>(
+        &self,
+        writer: &mut W,
+        central_header: bool,
+    ) -> std::io::Result<()> {
         for field in &self.values {
-            field.write(writer)?;
+            field.write(writer, central_header)?;
         }
         Ok(())
     }
@@ -61,20 +139,20 @@ pub enum ExtraField {
         /// File/directory creation timestamp
         ctime: u64,
     },
-    /// UNIX file/directory properties.
-    ///
-    /// Variable length data field is unused and not implemented.
-    Unix {
-        /// Last access timestamp
-        atime: u32,
-        /// Last modification timestamp
-        mtime: u32,
-        /// UID of the user account that owns the file/directory
-        uid: u16,
-        /// GID of the group that owns the file/directory
-        gid: u16,
+    UnixExtendedTimestamp {
+        mod_time: Option<i32>,
+        ac_time: Option<i32>,
+        cr_time: Option<i32>,
+    },
+    UnixAttrs {
+        uid: u32,
+        gid: u32,
     },
 }
+
+const MOD_TIME_PRESENT: u8 = 1;
+const AC_TIME_PRESENT: u8 = 1 << 1;
+const CR_TIME_PRESENT: u8 = 1 << 2;
 
 impl ExtraField {
     #[inline]
@@ -85,37 +163,64 @@ impl ExtraField {
                 atime: _,
                 ctime: _,
             } => 0x000a,
-            Self::Unix {
-                atime: _,
-                mtime: _,
-                uid: _,
-                gid: _,
-            } => 0x000d,
+            Self::UnixExtendedTimestamp {
+                mod_time: _,
+                ac_time: _,
+                cr_time: _,
+            } => 0x5455,
+            Self::UnixAttrs { uid: _, gid: _ } => 0x7875,
         }
     }
 
     #[inline]
-    fn field_size(&self) -> u16 {
+    const fn optional_field_size<T: Sized>(field: &Option<T>) -> u16 {
+        match field {
+            Some(_) => std::mem::size_of::<T>() as u16,
+            None => 0,
+        }
+    }
+
+    #[inline]
+    fn field_size(&self, central_header: bool) -> u16 {
         match self {
             Self::Ntfs {
                 mtime: _,
                 atime: _,
                 ctime: _,
             } => 32,
-            Self::Unix {
-                atime: _,
-                mtime: _,
-                uid: _,
-                gid: _,
-            } => 12,
+            Self::UnixExtendedTimestamp {
+                mod_time,
+                ac_time,
+                cr_time,
+            } => {
+                1 + Self::optional_field_size(mod_time)
+                    + (!central_header)
+                        .then(|| {
+                            Self::optional_field_size(ac_time) + Self::optional_field_size(cr_time)
+                        })
+                        .unwrap_or(0)
+            }
+            Self::UnixAttrs { uid: _, gid: _ } => 11,
         }
     }
 
-    pub(crate) fn write<W: Write>(self, writer: &mut W) -> std::io::Result<()> {
+    #[inline]
+    const fn if_present(val: Option<i32>, if_present: u8) -> u8 {
+        match val {
+            Some(_) => if_present,
+            None => 0,
+        }
+    }
+
+    pub(crate) fn write<W: Write>(
+        self,
+        writer: &mut W,
+        central_header: bool,
+    ) -> std::io::Result<()> {
         // Header ID
         writer.write_all(&self.header_id().to_le_bytes())?;
         // Field data size
-        writer.write_all(&self.field_size().to_le_bytes())?;
+        writer.write_all(&self.field_size(central_header).to_le_bytes())?;
 
         match self {
             Self::Ntfs {
@@ -138,124 +243,41 @@ impl ExtraField {
                 // Ctime
                 writer.write_all(&ctime.to_le_bytes())?;
             }
-            Self::Unix {
-                atime,
-                mtime,
-                uid,
-                gid,
+            Self::UnixExtendedTimestamp {
+                mod_time,
+                ac_time,
+                cr_time,
             } => {
-                // Atime
-                writer.write_all(&atime.to_le_bytes())?;
-                // Mtime
-                writer.write_all(&mtime.to_le_bytes())?;
-                // Uid
+                let flags = Self::if_present(mod_time, MOD_TIME_PRESENT)
+                    | Self::if_present(ac_time, AC_TIME_PRESENT)
+                    | Self::if_present(cr_time, CR_TIME_PRESENT);
+                writer.write_all(&[flags])?;
+                if let Some(mod_time) = mod_time {
+                    writer.write_all(&mod_time.to_le_bytes())?;
+                }
+                if !central_header {
+                    if let Some(ac_time) = ac_time {
+                        writer.write_all(&ac_time.to_le_bytes())?;
+                    }
+                    if let Some(cr_time) = cr_time {
+                        writer.write_all(&cr_time.to_le_bytes())?;
+                    }
+                }
+            }
+            Self::UnixAttrs { uid, gid } => {
+                // Version of the field
+                writer.write_all(&[1])?;
+                // UID size
+                writer.write_all(&[4])?;
+                // UID
                 writer.write_all(&uid.to_le_bytes())?;
-                // Gid
+                // GID size
+                writer.write_all(&[4])?;
+                // GID
                 writer.write_all(&gid.to_le_bytes())?;
             }
         }
 
         Ok(())
-    }
-
-    /// Read filesystem metadata to create a new value of [`ExtraField`]. The behavior depends on
-    /// the compilation target. If no useful information can be obtained from filesystem metadata,
-    /// `None` is returned. The only case where this would happen if the target OS is not Windows,
-    /// Linux or UNIX.
-    ///
-    /// # Linux and UNIX
-    ///
-    /// Due to differences between the data size rust API provides and what ZIP uses, some debug
-    /// mode runtime assertions are being made to make sure that the values lay in a sane range.
-    /// In the release build, panicking conversion is used for atime and mtime and higher part of
-    /// UID and GID is cut off.
-    #[inline]
-    pub fn new_from_fs(metadata: &Metadata) -> Option<Self> {
-        cfg_if! {
-            if #[cfg(target_os = "windows")] {
-                Some(Self::new_windows(metadata))
-            } else if #[cfg(target_os = "linux")] {
-                Some(Self::new_linux(metadata))
-            } else if #[cfg(target_os = "unix")] {
-                Some(Self::new_unix(metadata))
-            } else {
-                None
-            }
-        }
-    }
-
-    /// Due to differences between the data size rust API provides and what ZIP uses, some debug
-    /// mode runtime assertions are being made to make sure that the values lay in a sane range.
-    /// In the release build, panicking conversion is used for atime and mtime and higher part of
-    /// UID and GID is cut off.
-    #[cfg(target_os = "linux")]
-    fn new_linux(metadata: &Metadata) -> Self {
-        use std::os::linux::fs::MetadataExt;
-
-        debug_assert!(!metadata.st_atime().is_negative());
-        debug_assert!(metadata.st_atime() <= u32::MAX.into());
-        let atime = metadata.st_atime().try_into().unwrap();
-
-        debug_assert!(!metadata.st_mtime().is_negative());
-        debug_assert!(metadata.st_mtime() <= u32::MAX.into());
-        let mtime = metadata.st_mtime().try_into().unwrap();
-
-        debug_assert!(metadata.st_uid() <= u16::MAX.into());
-        let uid = (metadata.st_uid() & 0xFFFF) as u16;
-
-        debug_assert!(metadata.st_gid() <= u16::MAX.into());
-        let gid = (metadata.st_gid() & 0xFFFF) as u16;
-
-        Self::Unix {
-            atime,
-            mtime,
-            uid,
-            gid,
-        }
-    }
-
-    /// Due to differences between the data size rust API provides and what ZIP uses, some debug
-    /// mode runtime assertions are being made to make sure that the values lay in a sane range.
-    /// In the release build, panicking conversion is used for atime and mtime and higher part of
-    /// UID and GID is cut off.
-    #[cfg(target_os = "unix")]
-    fn new_unix(metadata: &Metadata) -> Self {
-        use std::os::unix::fs::MetadataExt;
-
-        debug_assert!(!metadata.st_atime().is_negative());
-        debug_assert!(metadata.st_atime() <= u32::MAX.into());
-        let atime = metadata.st_atime().try_into().unwrap();
-
-        debug_assert!(!metadata.st_mtime().is_negative());
-        debug_assert!(metadata.st_mtime() <= u32::MAX.into());
-        let mtime = metadata.st_mtime().try_into().unwrap();
-
-        debug_assert!(metadata.st_uid() <= u16::MAX.into());
-        let uid = (metadata.st_uid() & 0xFFFF) as u16;
-
-        debug_assert!(metadata.st_gid() <= u16::MAX.into());
-        let gid = (metadata.st_gid() & 0xFFFF) as u16;
-
-        Self::Unix {
-            atime,
-            mtime,
-            uid,
-            gid,
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    fn new_windows(metadata: &Metadata) -> Self {
-        use std::os::windows::fs::MetadataExt;
-
-        let mtime = metadata.last_write_time();
-        let atime = metadata.last_access_time();
-        let ctime = metadata.creation_time();
-
-        Self::Ntfs {
-            mtime,
-            atime,
-            ctime,
-        }
     }
 }
