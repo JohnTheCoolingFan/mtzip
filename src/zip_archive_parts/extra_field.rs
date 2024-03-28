@@ -42,8 +42,9 @@ impl ExtraFields {
     }
 }
 
-/// Extra data that can be associated with a file or directory. This library only implements the
-/// filesystem properties in NTFS or UNIX format.
+/// Extra data that can be associated with a file or directory.
+///
+/// This library only implements the filesystem properties in NTFS or UNIX format.
 ///
 /// The [`new_from_fs`](Self::new_from_fs) method will use the metadata the filesystem provides to
 /// construct the collection.
