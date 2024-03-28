@@ -64,7 +64,10 @@ impl ZipFile {
         }
     }
 
-    pub fn write_file_header_and_data<W: Write + Seek>(&self, buf: &mut W) -> std::io::Result<()> {
+    pub fn write_local_file_header_and_data<W: Write + Seek>(
+        &self,
+        buf: &mut W,
+    ) -> std::io::Result<()> {
         // signature
         buf.write_all(&LOCAL_FILE_HEADER_SIGNATURE.to_le_bytes())?;
         // version needed to extract
@@ -101,7 +104,7 @@ impl ZipFile {
         Ok(())
     }
 
-    pub fn write_directory_entry<W: Write + Seek>(
+    pub fn write_central_directory_entry<W: Write + Seek>(
         &self,
         buf: &mut W,
         local_header_offset: u32,

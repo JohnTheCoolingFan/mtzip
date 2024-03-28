@@ -16,13 +16,13 @@ impl ZipData {
         for file in &self.files {
             debug_assert!(buf.stream_position()? <= u32::MAX.into());
             offsets.push(buf.stream_position()? as u32);
-            file.write_file_header_and_data(buf)?;
+            file.write_local_file_header_and_data(buf)?;
         }
         debug_assert!(buf.stream_position()? <= u32::MAX.into());
         let central_dir_offset = buf.stream_position()? as u32;
         // Zip directory entries
         for (file, offset) in self.files.iter().zip(offsets.iter()) {
-            file.write_directory_entry(buf, *offset)?;
+            file.write_central_directory_entry(buf, *offset)?;
         }
 
         // End of central dir record
