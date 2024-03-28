@@ -41,7 +41,7 @@ use std::{
 use level::CompressionLevel;
 use zip_archive_parts::{
     data::ZipData,
-    extra_fields::ExtraFields,
+    extra_fields::{ExtraField, ExtraFields},
     job::{ZipJob, ZipJobOrigin},
 };
 
@@ -130,14 +130,14 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         archived_path: String,
         compression_level: Option<CompressionLevel>,
         compression_type: Option<CompressionType>,
-        extra_fields: Option<ExtraFields>,
+        extra_field: Option<ExtraField>,
     ) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::RawData {
                 data: data.into(),
                 compression_level: compression_level.unwrap_or(CompressionLevel::best()),
                 compression_type: compression_type.unwrap_or(CompressionType::Deflate),
-                extra_fields: extra_fields.unwrap_or_default(),
+                extra_fields: ExtraFields::new(extra_field),
             },
             archive_path: archived_path,
         };
@@ -169,9 +169,11 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
     /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
-    pub fn add_directory_with_metadata(&self, archived_path: String, extra_fields: ExtraFields) {
+    pub fn add_directory_with_metadata(&self, archived_path: String, extra_field: ExtraField) {
         let job = ZipJob {
-            data_origin: ZipJobOrigin::Directory { extra_fields },
+            data_origin: ZipJobOrigin::Directory {
+                extra_fields: ExtraFields::new([extra_field]),
+            },
             archive_path: archived_path,
         };
         {

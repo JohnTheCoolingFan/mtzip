@@ -9,7 +9,7 @@ use cfg_if::cfg_if;
 /// The [`new_from_fs`](Self::new_from_fs) method will use the metadata the filesystem provides to
 /// construct the collection.
 #[derive(Debug, Clone, Default)]
-pub struct ExtraFields {
+pub(crate) struct ExtraFields {
     pub(crate) values: Vec<ExtraField>,
 }
 
@@ -30,6 +30,15 @@ impl ExtraFields {
             field.write(writer)?;
         }
         Ok(())
+    }
+
+    pub(crate) fn new<I>(fields: I) -> Self
+    where
+        I: IntoIterator<Item = ExtraField>,
+    {
+        Self {
+            values: fields.into_iter().collect(),
+        }
     }
 }
 
