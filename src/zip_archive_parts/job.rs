@@ -8,7 +8,7 @@ use std::{
 use cfg_if::cfg_if;
 use flate2::{read::DeflateEncoder, CrcReader};
 
-use super::{extra_fields::ExtraFields, file::ZipFile};
+use super::{extra_field::ExtraFields, file::ZipFile};
 use crate::{level::CompressionLevel, CompressionType};
 
 #[derive(Debug)]

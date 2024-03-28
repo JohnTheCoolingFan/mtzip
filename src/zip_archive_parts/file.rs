@@ -1,6 +1,6 @@
 use std::io::{Seek, Write};
 
-use super::extra_fields::ExtraFields;
+use super::extra_field::ExtraFields;
 use crate::CompressionType;
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;

@@ -41,14 +41,14 @@ use std::{
 use level::CompressionLevel;
 use zip_archive_parts::{
     data::ZipData,
-    extra_fields::{ExtraField, ExtraFields},
+    extra_field::{ExtraField, ExtraFields},
     job::{ZipJob, ZipJobOrigin},
 };
 
 pub mod level;
 mod zip_archive_parts;
 
-pub use zip_archive_parts::extra_fields;
+pub use zip_archive_parts::extra_field;
 
 // TODO: Make another queue of jobs for simple records, such as directories
 
