@@ -23,9 +23,11 @@ pub enum ZipJobOrigin<'d, 'p> {
         compression_level: CompressionLevel,
         compression_type: CompressionType,
         extra_fields: ExtraFields,
+        external_attributes: u16,
     },
     Directory {
         extra_fields: ExtraFields,
+        external_attributes: u16,
     },
 }
 
@@ -37,17 +39,22 @@ pub struct ZipJob<'a, 'p> {
 
 impl ZipJob<'_, '_> {
     #[inline]
-    fn attributes(metadata: &Metadata) -> u32 {
+    const fn convert_attrs(attrs: u32) -> u16 {
+        (attrs & 0xFFFF) as u16
+    }
+
+    #[inline]
+    pub(crate) fn attributes(metadata: &Metadata) -> u16 {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
                 use std::os::windows::fs::MetadataExt;
-                metadata.file_attributes() << 16
+                Self::convert_attrs(metadata.file_attributes())
             } else if #[cfg(target_os = "linux")] {
                 use std::os::linux::fs::MetadataExt;
-                metadata.st_mode() << 16
+                Self::convert_attrs(metadata.st_mode())
             } else if #[cfg(target_os = "unix")] {
                 use std::os::unix::fs::MetadataExt;
-                metadata.permissions().mode() << 16
+                Self::convert_attrs(metadata.permissions().mode())
             } else {
                 if metadata.is_dir() {
                     DEFAULT_UNIX_DIR_ATTRS
@@ -62,7 +69,7 @@ impl ZipJob<'_, '_> {
         source: R,
         uncompressed_size: u32,
         archive_path: String,
-        attributes: Option<u32>,
+        attributes: u16,
         compression_level: CompressionLevel,
         compression_type: CompressionType,
         extra_fields: ExtraFields,
@@ -86,16 +93,21 @@ impl ZipJob<'_, '_> {
             uncompressed_size,
             filename: archive_path,
             data,
-            external_file_attributes: attributes.unwrap_or(ZipFile::default_attrs(false)),
+            external_file_attributes: (attributes as u32) << 16,
             extra_fields,
         })
     }
 
     pub fn into_file(self) -> std::io::Result<ZipFile> {
         match self.data_origin {
-            ZipJobOrigin::Directory { extra_fields } => {
-                Ok(ZipFile::directory(self.archive_path, extra_fields))
-            }
+            ZipJobOrigin::Directory {
+                extra_fields,
+                external_attributes,
+            } => Ok(ZipFile::directory(
+                self.archive_path,
+                extra_fields,
+                external_attributes,
+            )),
             ZipJobOrigin::Filesystem {
                 path,
                 compression_level,
@@ -111,7 +123,7 @@ impl ZipJob<'_, '_> {
                     file,
                     uncompressed_size,
                     self.archive_path,
-                    Some(external_file_attributes),
+                    external_file_attributes,
                     compression_level,
                     compression_type,
                     extra_fields,
@@ -122,6 +134,7 @@ impl ZipJob<'_, '_> {
                 compression_level,
                 compression_type,
                 extra_fields,
+                external_attributes,
             } => {
                 debug_assert!(data.len() <= u32::MAX as usize);
                 let uncompressed_size = data.len() as u32;
@@ -129,7 +142,7 @@ impl ZipJob<'_, '_> {
                     data.as_ref(),
                     uncompressed_size,
                     self.archive_path,
-                    None,
+                    external_attributes,
                     compression_level,
                     compression_type,
                     extra_fields,

@@ -5,25 +5,32 @@ use cfg_if::cfg_if;
 use super::extra_field::ExtraFields;
 use crate::CompressionType;
 
-const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
-#[cfg(not(target_os = "windows"))]
-const VERSION_MADE_BY: u16 = 0x033F;
-#[cfg(target_os = "windows")]
-const VERSION_MADE_BY: u16 = 0x0A3F;
-
 const LOCAL_FILE_HEADER_SIGNATURE: u32 = 0x04034B50;
 const CENTRAL_FILE_HEADER_SIGNATURE: u32 = 0x02014B50;
+
+const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
+#[cfg(not(target_os = "windows"))]
+/// OS - Unix assumed, id 3
+/// Specification version 6.2
+const VERSION_MADE_BY: u16 = (3 << 8) + 62;
+#[cfg(target_os = "windows")]
+/// OS - Windows, id 11 per Info-Zip spec
+/// Specification version 6.2
+const VERSION_MADE_BY: u16 = (11 << 8) + 62;
+
+#[cfg(any(target_os = "linux", unix))]
+pub(crate) const DEFAULT_UNIX_FILE_ATTRS: u16 = 0o100644;
+#[cfg(any(target_os = "linux", unix))]
+pub(crate) const DEFAULT_UNIX_DIR_ATTRS: u16 = 0o040755;
+
+#[cfg(target_os = "windows")]
+pub(crate) const DEFAULT_WINDOWS_FILE_ATTRS: u16 = 128;
+#[cfg(target_os = "windows")]
+pub(crate) const DEFAULT_WINDOWS_DIR_ATTRS: u16 = 16;
+
+/// Set bit 11 to indicate that the file names are in UTF-8, because all strings in rust are valid
+/// UTF-8
 const GENERAL_PURPOSE_BIT_FLAG: u16 = 1 << 11;
-
-#[cfg(any(target_os = "linux", unix))]
-pub(crate) const DEFAULT_UNIX_FILE_ATTRS: u32 = 0o100644 << 16;
-#[cfg(any(target_os = "linux", unix))]
-pub(crate) const DEFAULT_UNIX_DIR_ATTRS: u32 = 0o040755 << 16;
-
-#[cfg(target_os = "windows")]
-pub(crate) const DEFAULT_WINDOWS_FILE_ATTRS: u32 = 128 << 16;
-#[cfg(target_os = "windows")]
-pub(crate) const DEFAULT_WINDOWS_DIR_ATTRS: u32 = 16 << 16;
 
 #[derive(Debug)]
 pub struct ZipFile {
@@ -37,7 +44,7 @@ pub struct ZipFile {
 }
 
 impl ZipFile {
-    pub(crate) fn default_attrs(is_dir: bool) -> u32 {
+    pub(crate) const fn default_attrs(is_dir: bool) -> u16 {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
                 if is_dir {
@@ -145,7 +152,11 @@ impl ZipFile {
     }
 
     #[inline]
-    pub fn directory(mut name: String, extra_fields: ExtraFields) -> Self {
+    pub fn directory(
+        mut name: String,
+        extra_fields: ExtraFields,
+        external_attributes: u16,
+    ) -> Self {
         if !(name.ends_with('/') || name.ends_with('\\')) {
             name += "/"
         };
@@ -155,7 +166,7 @@ impl ZipFile {
             uncompressed_size: 0,
             filename: name,
             data: vec![],
-            external_file_attributes: Self::default_attrs(true),
+            external_file_attributes: (external_attributes as u32) << 16,
             extra_fields,
         }
     }

@@ -139,6 +139,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         archived_path: String,
         compression_level: Option<CompressionLevel>,
         compression_type: Option<CompressionType>,
+        file_attributes: Option<u16>,
         extra_field: Option<ExtraField>,
     ) {
         let job = ZipJob {
@@ -146,6 +147,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
                 data: data.into(),
                 compression_level: compression_level.unwrap_or(CompressionLevel::best()),
                 compression_type: compression_type.unwrap_or(CompressionType::Deflate),
+                external_attributes: file_attributes.unwrap_or(ZipFile::default_attrs(false)),
                 extra_fields: ExtraFields::new(extra_field),
             },
             archive_path: archived_path,
@@ -156,10 +158,11 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// Add a directory entry. All directories in the tree should be added.
     ///
     /// This method does not asssociate any filesystem properties to the entry.
-    pub fn add_directory(&self, archived_path: String) {
+    pub fn add_directory(&self, archived_path: String, attributes: Option<u16>) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
                 extra_fields: ExtraFields::default(),
+                external_attributes: attributes.unwrap_or(ZipFile::default_attrs(true)),
             },
             archive_path: archived_path,
         };
@@ -173,10 +176,16 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// `extra_field` parameter allows setting extra attributes. Currently it supports NTFS and
     /// UNIX filesystem attributes, see more in [`ExtraField`] description.
-    pub fn add_directory_with_metadata(&self, archived_path: String, extra_field: ExtraField) {
+    pub fn add_directory_with_metadata(
+        &self,
+        archived_path: String,
+        extra_field: ExtraField,
+        attributes: Option<u16>,
+    ) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
                 extra_fields: ExtraFields::new([extra_field]),
+                external_attributes: attributes.unwrap_or(ZipFile::default_attrs(true)),
             },
             archive_path: archived_path,
         };
@@ -195,7 +204,10 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         let metadata = std::fs::metadata(fs_path)?;
         let extra_fields = ExtraFields::new_from_fs(&metadata);
         let job = ZipJob {
-            data_origin: ZipJobOrigin::Directory { extra_fields },
+            data_origin: ZipJobOrigin::Directory {
+                extra_fields,
+                external_attributes: ZipJob::attributes(&metadata),
+            },
             archive_path: archived_path,
         };
         let file = job.into_file().expect("No failing code path");
