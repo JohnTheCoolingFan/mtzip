@@ -30,6 +30,8 @@
 //! zipper.write(&mut file); // Amount of threads is chosen automatically
 //! ```
 
+#![warn(missing_docs)]
+
 use std::{
     borrow::Cow,
     io::{Seek, Write},
@@ -58,8 +60,12 @@ pub use zip_archive_parts::extra_field;
 #[repr(u16)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CompressionType {
+    /// No compression at all, the data is stored as-is.
+    ///
+    /// This is used for directories because they have no data (no payload)
     Stored = 0,
     #[default]
+    /// Deflate compression, the most common in ZIP files.
     Deflate = 8,
 }
 

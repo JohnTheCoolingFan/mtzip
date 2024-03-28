@@ -23,6 +23,11 @@ impl ExtraFields {
             .sum()
     }
 
+    /// This method will use the filesystem metadata to get the properties that can be stored in
+    /// ZIP [`ExtraFields`].
+    ///
+    /// The behavior is dependent on the target platform. Will return an empty set if the target os
+    /// is not Windows or Linux and not of UNIX family.
     pub fn new_from_fs(metadata: &Metadata) -> Self {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
@@ -112,6 +117,7 @@ impl ExtraFields {
         Ok(())
     }
 
+    /// Create a new set of [`ExtraField`]s
     pub fn new<I>(fields: I) -> Self
     where
         I: IntoIterator<Item = ExtraField>,
@@ -139,13 +145,21 @@ pub enum ExtraField {
         /// File/directory creation timestamp
         ctime: u64,
     },
+    /// Info-Zip extended unix timestamp. Each part is optional by definition, but will be
+    /// populated by [`new_from_fs`](ExtraFields::new_from_fs).
     UnixExtendedTimestamp {
+        /// Last modification time
         mod_time: Option<i32>,
+        /// Last access time
         ac_time: Option<i32>,
+        /// Creation time
         cr_time: Option<i32>,
     },
+    /// UNIX file/directory attributes defined by Info-Zip.
     UnixAttrs {
+        /// UID of the owner
         uid: u32,
+        /// GID of the group
         gid: u32,
     },
 }
