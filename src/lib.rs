@@ -53,6 +53,8 @@ mod zip_archive_parts;
 
 pub use zip_archive_parts::extra_field;
 
+// TODO: tests, maybe examples
+
 /// Compression type for the file. Directories always use [`Stored`](CompressionType::Stored).
 /// Default is [`Deflate`](CompressionType::Deflate).
 #[repr(u16)]
