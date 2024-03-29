@@ -21,7 +21,7 @@ impl ExtraFields {
     /// # Safety
     ///
     /// All fields must have valid values depending on the field type.
-    pub fn new<I>(fields: I) -> Self
+    pub unsafe fn new<I>(fields: I) -> Self
     where
         I: IntoIterator<Item = ExtraField>,
     {
