@@ -44,20 +44,24 @@ pub struct ZipFile {
 }
 
 impl ZipFile {
-    pub(crate) const fn default_attrs(is_dir: bool) -> u16 {
+    pub(crate) const fn default_file_attrs() -> u16 {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
-                if is_dir {
-                    DEFAULT_WINDOWS_DIR_ATTRS
-                } else {
-                    DEFAULT_WINDOWS_FILE_ATTRS
-                }
+                DEFAULT_WINDOWS_FILE_ATTRS
             } else if #[cfg(any(target_os = "linux", unix))] {
-                if is_dir {
-                    DEFAULT_UNIX_DIR_ATTRS
-                } else {
-                    DEFAULT_UNIX_FILE_ATTRS
-                }
+                DEFAULT_UNIX_FILE_ATTRS
+            } else {
+                0
+            }
+        }
+    }
+
+    pub(crate) const fn default_dir_attrs() -> u16 {
+        cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                DEFAULT_WINDOWS_DIR_ATTRS
+            } else if #[cfg(any(target_os = "linux", unix))] {
+                DEFAULT_UNIX_DIR_ATTRS
             } else {
                 0
             }

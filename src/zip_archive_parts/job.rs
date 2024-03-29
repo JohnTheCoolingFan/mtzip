@@ -44,7 +44,7 @@ impl ZipJob<'_, '_> {
     }
 
     #[inline]
-    pub(crate) fn attributes(metadata: &Metadata) -> u16 {
+    pub(crate) fn attributes_from_fs(metadata: &Metadata) -> u16 {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
                 use std::os::windows::fs::MetadataExt;
@@ -117,7 +117,7 @@ impl ZipJob<'_, '_> {
                 let file_metadata = file.metadata().unwrap();
                 debug_assert!(file_metadata.len() <= u32::MAX.into());
                 let uncompressed_size = file_metadata.len() as u32;
-                let external_file_attributes = Self::attributes(&file_metadata);
+                let external_file_attributes = Self::attributes_from_fs(&file_metadata);
                 let extra_fields = ExtraFields::new_from_fs(&file_metadata);
                 Self::gen_file(
                     file,

@@ -156,7 +156,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
                 data: data.into(),
                 compression_level: compression_level.unwrap_or(CompressionLevel::best()),
                 compression_type: compression_type.unwrap_or(CompressionType::Deflate),
-                external_attributes: file_attributes.unwrap_or(ZipFile::default_attrs(false)),
+                external_attributes: file_attributes.unwrap_or(ZipFile::default_file_attrs()),
                 extra_fields: extra_fields.unwrap_or_default(),
             },
             archive_path: archived_path,
@@ -172,7 +172,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
                 extra_fields: ExtraFields::default(),
-                external_attributes: attributes.unwrap_or(ZipFile::default_attrs(true)),
+                external_attributes: attributes.unwrap_or(ZipFile::default_dir_attrs()),
             },
             archive_path: archived_path,
         };
@@ -196,7 +196,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
                 extra_fields,
-                external_attributes: attributes.unwrap_or(ZipFile::default_attrs(true)),
+                external_attributes: attributes.unwrap_or(ZipFile::default_dir_attrs()),
             },
             archive_path: archived_path,
         };
@@ -217,7 +217,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
                 extra_fields: ExtraFields::new_from_fs(&metadata),
-                external_attributes: ZipJob::attributes(&metadata),
+                external_attributes: ZipJob::attributes_from_fs(&metadata),
             },
             archive_path: archived_path,
         };
