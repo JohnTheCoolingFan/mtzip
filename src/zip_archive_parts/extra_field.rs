@@ -16,11 +16,18 @@ pub struct ExtraFields {
 }
 
 impl ExtraFields {
-    pub(crate) fn data_length(&self, central_header: bool) -> u16 {
-        self.values
-            .iter()
-            .map(|f| 4 + f.field_size(central_header))
-            .sum()
+    /// Create a new set of [`ExtraField`]s. [`Self::new_from_fs`] should be preferred.
+    ///
+    /// # Safety
+    ///
+    /// All fields must have valid values depending on the field type.
+    pub fn new<I>(fields: I) -> Self
+    where
+        I: IntoIterator<Item = ExtraField>,
+    {
+        Self {
+            values: fields.into_iter().collect(),
+        }
     }
 
     /// This method will use the filesystem metadata to get the properties that can be stored in
@@ -106,6 +113,13 @@ impl ExtraFields {
         }
     }
 
+    pub(crate) fn data_length(&self, central_header: bool) -> u16 {
+        self.values
+            .iter()
+            .map(|f| 4 + f.field_size(central_header))
+            .sum()
+    }
+
     pub(crate) fn write<W: Write>(
         &self,
         writer: &mut W,
@@ -116,24 +130,11 @@ impl ExtraFields {
         }
         Ok(())
     }
-
-    /// Create a new set of [`ExtraField`]s
-    pub fn new<I>(fields: I) -> Self
-    where
-        I: IntoIterator<Item = ExtraField>,
-    {
-        Self {
-            values: fields.into_iter().collect(),
-        }
-    }
 }
 
 /// Extra data that can be associated with a file or directory.
 ///
-/// This library only implements the filesystem properties in NTFS or UNIX format.
-///
-/// The [`new_from_fs`](Self::new_from_fs) method will use the metadata the filesystem provides to
-/// construct the collection.
+/// This library only implements the filesystem properties in NTFS and UNIX format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtraField {
     /// NTFS file properties.
@@ -146,13 +147,13 @@ pub enum ExtraField {
         ctime: u64,
     },
     /// Info-Zip extended unix timestamp. Each part is optional by definition, but will be
-    /// populated by [`new_from_fs`](ExtraFields::new_from_fs).
+    /// populated by [`ExtraFields::new_from_fs`].
     UnixExtendedTimestamp {
-        /// Last modification time
+        /// Last modification timestamp
         mod_time: Option<i32>,
-        /// Last access time
+        /// Last access timestamp
         ac_time: Option<i32>,
-        /// Creation time
+        /// Creation timestamp
         cr_time: Option<i32>,
     },
     /// UNIX file/directory attributes defined by Info-Zip.
