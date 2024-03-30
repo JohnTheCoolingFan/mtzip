@@ -113,20 +113,19 @@ impl ExtraFields {
         }
     }
 
-    pub(crate) fn data_length(&self, central_header: bool) -> u16 {
+    pub(crate) fn data_length<const CENTRAL_HEADER: bool>(&self) -> u16 {
         self.values
             .iter()
-            .map(|f| 4 + f.field_size(central_header))
+            .map(|f| 4 + f.field_size::<CENTRAL_HEADER>())
             .sum()
     }
 
-    pub(crate) fn write<W: Write>(
+    pub(crate) fn write<W: Write, const CENTRAL_HEADER: bool>(
         &self,
         writer: &mut W,
-        central_header: bool,
     ) -> std::io::Result<()> {
         for field in &self.values {
-            field.write(writer, central_header)?;
+            field.write::<_, CENTRAL_HEADER>(writer)?;
         }
         Ok(())
     }
@@ -196,7 +195,7 @@ impl ExtraField {
     }
 
     #[inline]
-    fn field_size(&self, central_header: bool) -> u16 {
+    const fn field_size<const CENTRAL_HEADER: bool>(&self) -> u16 {
         match self {
             Self::Ntfs {
                 mtime: _,
@@ -208,12 +207,13 @@ impl ExtraField {
                 ac_time,
                 cr_time,
             } => {
-                1 + Self::optional_field_size(mod_time)
-                    + (!central_header)
-                        .then(|| {
-                            Self::optional_field_size(ac_time) + Self::optional_field_size(cr_time)
-                        })
-                        .unwrap_or(0)
+                1 + Self::optional_field_size(mod_time) + {
+                    if !CENTRAL_HEADER {
+                        Self::optional_field_size(ac_time) + Self::optional_field_size(cr_time)
+                    } else {
+                        0
+                    }
+                }
             }
             Self::UnixAttrs { uid: _, gid: _ } => 11,
         }
@@ -227,15 +227,14 @@ impl ExtraField {
         }
     }
 
-    pub(crate) fn write<W: Write>(
+    pub(crate) fn write<W: Write, const CENTRAL_HEADER: bool>(
         self,
         writer: &mut W,
-        central_header: bool,
     ) -> std::io::Result<()> {
         // Header ID
         writer.write_all(&self.header_id().to_le_bytes())?;
         // Field data size
-        writer.write_all(&self.field_size(central_header).to_le_bytes())?;
+        writer.write_all(&self.field_size::<CENTRAL_HEADER>().to_le_bytes())?;
 
         match self {
             Self::Ntfs {
@@ -270,7 +269,7 @@ impl ExtraField {
                 if let Some(mod_time) = mod_time {
                     writer.write_all(&mod_time.to_le_bytes())?;
                 }
-                if !central_header {
+                if !CENTRAL_HEADER {
                     if let Some(ac_time) = ac_time {
                         writer.write_all(&ac_time.to_le_bytes())?;
                     }
