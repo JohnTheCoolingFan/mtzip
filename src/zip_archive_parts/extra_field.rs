@@ -41,7 +41,7 @@ impl ExtraFields {
                 Self::new_windows(metadata)
             } else if #[cfg(target_os = "linux")] {
                 Self::new_linux(metadata)
-            } else if #[cfg(unix)] {
+            } else if #[cfg(all(unix, not(target_os = "linux")))] {
                 Self::new_unix(metadata)
             } else {
                 Self::default()
@@ -72,7 +72,7 @@ impl ExtraFields {
         }
     }
 
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_os = "linux")))]
     #[allow(dead_code)]
     fn new_unix(metadata: &Metadata) -> Self {
         use std::os::unix::fs::MetadataExt;
