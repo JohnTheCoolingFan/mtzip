@@ -2,7 +2,7 @@
 name = "mtzip"
 version = "1.3.0"
 edition = "2021"
-description = "A library to make zip archives with multithreaded compression"
+description = "A library for making zip archives with multithreaded compression"
 license = "MIT"
 repository = "https://github.com/JohnTheCoolingFan/mtzip"
 categories = ["compression", "concurrency"]
