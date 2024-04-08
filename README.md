@@ -31,3 +31,5 @@ let mut file = File::create("output.zip").unwrap();
 // Then, write to it
 zipper.write(&mut file); // Amount of threads is chosen automatically
 ```
+
+The amount of threads is also determined by the amount of files that are going to be compressed. Because Deflate compression cannot be multithreaded, the multithreading is achieved by having the files compressed individually. This means that if you have 12 threads available but only 6 files being added to the archive, you will only use 6 threads.
