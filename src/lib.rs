@@ -1,8 +1,8 @@
 //! # mtzip
 //!
 //! MTZIP (Stands for Multi-Threaded ZIP) is a library for making zip archives while utilising all
-//! available performance available with multithreading. The amount of threads can be limited by the
-//! user or detected automatically.
+//! available performance available with multithreading. The amount of threads can be limited by
+//! the user or detected automatically.
 //!
 //! Example usage:
 //!
@@ -21,7 +21,10 @@
 //! // Adding a directory and a file to it
 //! zipper.add_directory("test_dir");
 //! // And adding a file to it
-//! zipper.add_file_from_fs("input/file_that_goes_to_a_dir.txt", "test_dir/file_that_goes_to_a_dir.txt");
+//! zipper.add_file_from_fs(
+//!     "input/file_that_goes_to_a_dir.txt",
+//!     "test_dir/file_that_goes_to_a_dir.txt",
+//! );
 //!
 //! // Writing to a file
 //! // First, open the file
@@ -226,9 +229,9 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         Ok(())
     }
 
-    /// Compress contents. Will be done automatically on [`write`](Self::write) call if files were added
-    /// between last compression and [`write`](Self::write) call. Automatically chooses amount of
-    /// threads to use based on how much are available.
+    /// Compress contents. Will be done automatically on [`write`](Self::write) call if files were
+    /// added between last compression and [`write`](Self::write) call. Automatically chooses
+    /// amount of threads to use based on how much are available.
     #[inline]
     pub fn compress(&self) {
         self.compress_with_threads(Self::get_threads());
@@ -239,10 +242,13 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// compression and [`write`](Self::write). Allows specifying amount of threads that will be
     /// used.
     ///
-    /// Example of getting amount of threads that this library uses in [`compress`](Self::compress):
+    /// Example of getting amount of threads that this library uses in
+    /// [`compress`](Self::compress):
     ///
     /// ```
-    /// let threads = std::thread::available_parallelism().map(NonZeroUsize::get).unwrap_or(1);
+    /// let threads = std::thread::available_parallelism()
+    ///     .map(NonZeroUsize::get)
+    ///     .unwrap_or(1);
     ///
     /// zipper.compress_with_threads(threads);
     /// ```
@@ -288,9 +294,11 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// Example of getting amount of threads that this library uses in [`write`](Self::write):
     ///
     /// ```
-    /// let threads = std::thread::available_parallelism().map(NonZeroUsize::get).unwrap_or(1);
+    /// let threads = std::thread::available_parallelism()
+    ///     .map(NonZeroUsize::get)
+    ///     .unwrap_or(1);
     ///
-    /// zipper.write_with_threads(threads);
+    /// zipper.compress_with_threads(threads);
     /// ```
     pub fn write_with_threads<W: Write + Seek>(
         &self,
