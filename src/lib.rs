@@ -133,10 +133,10 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
         self.push_job(job);
     }
 
-    /// Add file from an owned data source.
+    /// Add file with data from memory.
     ///
-    /// Data is stored in archive struct for later compression. Helps avoiding lifetime hell at the
-    /// cost of allocation in some cases.
+    /// The data can be either borrowed or owned by the [`ZipArchive`] struct to avoid lifetime
+    /// hell.
     ///
     /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
     ///
