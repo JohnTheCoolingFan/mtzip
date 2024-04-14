@@ -254,18 +254,16 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// ```
     pub fn compress_with_threads(&self, threads: usize) {
         let (tx, rx) = mpsc::channel();
-        let jobs = &self.jobs_queue;
+        let mut jobs_lock = self.jobs_queue.lock().unwrap();
+        let jobs_drain = Mutex::new(jobs_lock.drain(..));
+        let jobs_drain_ref = &jobs_drain;
         std::thread::scope(|s| {
             for _ in 0..threads {
                 let thread_tx = tx.clone();
-                s.spawn(move || loop {
-                    let Some(job) = ({
-                        let mut job_lock = jobs.lock().unwrap();
-                        job_lock.pop()
-                    }) else {
-                        break;
-                    };
-                    thread_tx.send(job.into_file().unwrap()).unwrap();
+                s.spawn(move || {
+                    while let Some(job) = { jobs_drain_ref.lock().unwrap().next() } {
+                        thread_tx.send(job.into_file().unwrap()).unwrap();
+                    }
                 });
             }
         });
