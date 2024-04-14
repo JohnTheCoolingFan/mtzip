@@ -259,13 +259,11 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             for _ in 0..threads {
                 let thread_tx = tx.clone();
                 s.spawn(move || loop {
-                    let job = {
+                    let Some(job) = ({
                         let mut job_lock = jobs.lock().unwrap();
-                        if job_lock.is_empty() {
-                            break;
-                        } else {
-                            job_lock.pop().unwrap()
-                        }
+                        job_lock.pop()
+                    }) else {
+                        break;
                     };
                     thread_tx.send(job.into_file().unwrap()).unwrap();
                 });
