@@ -74,8 +74,6 @@ pub enum CompressionType {
 
 /// Structure that holds the current state of ZIP archive creation.
 ///
-/// Uses interior mutabillity for inner state management (pending jobs and compressed data).
-///
 /// The lifetime `'d` indicates the lifetime of borrowed data supplied in
 /// [`add_file_from_memory`](Self::add_file_from_memory).
 ///
@@ -83,19 +81,17 @@ pub enum CompressionType {
 /// [`add_file_from_fs`](Self::add_file_from_fs).
 #[derive(Debug, Default)]
 pub struct ZipArchive<'d, 'p> {
-    jobs_queue: Mutex<Vec<ZipJob<'d, 'p>>>,
-    data: Mutex<ZipData>,
+    jobs_queue: Vec<ZipJob<'d, 'p>>,
+    data: ZipData,
 }
 
 impl<'d, 'p> ZipArchive<'d, 'p> {
-    fn push_job(&self, job: ZipJob<'d, 'p>) {
-        let mut jobs = self.jobs_queue.lock().unwrap();
-        jobs.push(job);
+    fn push_job(&mut self, job: ZipJob<'d, 'p>) {
+        self.jobs_queue.push(job);
     }
 
-    fn push_file(&self, file: ZipFile) {
-        let mut data_lock = self.data.lock().unwrap();
-        data_lock.files.push(file);
+    fn push_file(&mut self, file: ZipFile) {
+        self.data.files.push(file);
     }
 
     /// Create an empty [`ZipArchive`]
@@ -116,7 +112,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// This method does not allow setting [`ExtraFields`] manually and instead uses the filesystem
     /// to obtain them.
     pub fn add_file_from_fs(
-        &self,
+        &mut self,
         fs_path: impl Into<Cow<'p, Path>>,
         archived_path: String,
         compression_level: Option<CompressionLevel>,
@@ -146,7 +142,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
     /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
     pub fn add_file_from_memory(
-        &self,
+        &mut self,
         data: impl Into<Cow<'d, [u8]>>,
         archived_path: String,
         compression_level: Option<CompressionLevel>,
@@ -171,7 +167,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// All directories in the tree should be added. This method does not asssociate any filesystem
     /// properties to the entry.
-    pub fn add_directory(&self, archived_path: String, attributes: Option<u16>) {
+    pub fn add_directory(&mut self, archived_path: String, attributes: Option<u16>) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
                 extra_fields: ExtraFields::default(),
@@ -191,7 +187,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
     /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
     pub fn add_directory_with_metadata(
-        &self,
+        &mut self,
         archived_path: String,
         extra_fields: ExtraFields,
         attributes: Option<u16>,
@@ -212,7 +208,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// All directories in the tree should be added. This method will take the metadata from
     /// filesystem and add it to the entry in the zip file.
     pub fn add_directory_with_metadata_from_fs<P: AsRef<Path>>(
-        &self,
+        &mut self,
         archived_path: String,
         fs_path: P,
     ) -> std::io::Result<()> {
@@ -233,7 +229,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// added between last compression and [`write`](Self::write) call. Automatically chooses
     /// amount of threads to use based on how much are available.
     #[inline]
-    pub fn compress(&self) {
+    pub fn compress(&mut self) {
         self.compress_with_threads(Self::get_threads());
     }
 
@@ -252,10 +248,9 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// zipper.compress_with_threads(threads);
     /// ```
-    pub fn compress_with_threads(&self, threads: usize) {
+    pub fn compress_with_threads(&mut self, threads: usize) {
         let (tx, rx) = mpsc::channel();
-        let mut jobs_lock = self.jobs_queue.lock().unwrap();
-        let jobs_drain = Mutex::new(jobs_lock.drain(..));
+        let jobs_drain = Mutex::new(self.jobs_queue.drain(..));
         let jobs_drain_ref = &jobs_drain;
         std::thread::scope(|s| {
             for _ in 0..threads {
@@ -268,17 +263,14 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             }
         });
         drop(tx);
-        {
-            let mut data_lock = self.data.lock().unwrap();
-            data_lock.files.extend(rx.iter());
-        }
+        self.data.files.extend(rx.iter());
     }
 
     /// Write compressed data to a writer (usually a file). Executes [`compress`](Self::compress)
     /// if files were added between last [`compress`](Self::compress) call and this call.
     /// Automatically chooses the amount of threads cpu has.
     #[inline]
-    pub fn write<W: Write + Seek>(&self, writer: &mut W) -> std::io::Result<()> {
+    pub fn write<W: Write + Seek>(&mut self, writer: &mut W) -> std::io::Result<()> {
         self.write_with_threads(writer, Self::get_threads())
     }
 
@@ -297,15 +289,14 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     /// zipper.compress_with_threads(threads);
     /// ```
     pub fn write_with_threads<W: Write + Seek>(
-        &self,
+        &mut self,
         writer: &mut W,
         threads: usize,
     ) -> std::io::Result<()> {
-        if !self.jobs_queue.lock().unwrap().is_empty() {
+        if !self.jobs_queue.is_empty() {
             self.compress_with_threads(threads)
         }
-        let data_lock = self.data.lock().unwrap();
-        data_lock.write(writer)
+        self.data.write(writer)
     }
 
     fn get_threads() -> usize {
