@@ -45,7 +45,6 @@ use std::{
 };
 
 use level::CompressionLevel;
-use rayon::iter::{ParallelDrainRange, ParallelExtend, ParallelIterator};
 use zip_archive_parts::{
     data::ZipData,
     extra_field::ExtraFields,
@@ -373,6 +372,7 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
     ///
     /// Uses whatever thread pool this function is executed in.
     pub fn compress_with_rayon(&mut self) {
+        use rayon::iter::{ParallelDrainRange, ParallelExtend, ParallelIterator};
         let files_par_iter = self
             .jobs_queue
             .par_drain(..)
