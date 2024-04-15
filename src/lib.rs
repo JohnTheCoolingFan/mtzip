@@ -45,6 +45,7 @@ use std::{
 };
 
 use level::CompressionLevel;
+use rayon::iter::{ParallelDrainRange, ParallelExtend, ParallelIterator};
 use zip_archive_parts::{
     data::ZipData,
     extra_field::ExtraFields,
@@ -363,5 +364,30 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
         std::thread::available_parallelism()
             .map(NonZeroUsize::get)
             .unwrap_or(1)
+    }
+}
+
+#[cfg(feature = "rayon")]
+impl<'d, 'p> ZipArchive<'d, 'p> {
+    /// Compress contents and use rayon for parallelism.
+    ///
+    /// Uses whatever thread pool this function is executed in.
+    pub fn compress_with_rayon(&mut self) {
+        let files_par_iter = self
+            .jobs_queue
+            .par_drain(..)
+            .map(|job| job.into_file().unwrap());
+        self.data.files.par_extend(files_par_iter)
+    }
+
+    /// Write the contents to a writer.
+    ///
+    /// This function will call [`compress_with_rayon`](Self::compress_with_rayon) if there are any
+    /// jobs in the queue. See the documentation of that method for details on parallelism.
+    pub fn write_with_rayon<W: Write + Seek>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        if !self.jobs_queue.is_empty() {
+            self.compress_with_rayon();
+        }
+        self.data.write(writer)
     }
 }
