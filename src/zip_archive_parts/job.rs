@@ -11,7 +11,6 @@ use flate2::{read::DeflateEncoder, CrcReader};
 use super::{extra_field::ExtraFields, file::ZipFile};
 use crate::{level::CompressionLevel, CompressionType};
 
-#[derive(Debug)]
 pub enum ZipJobOrigin<'d, 'p> {
     Filesystem {
         path: Cow<'p, Path>,
@@ -29,6 +28,65 @@ pub enum ZipJobOrigin<'d, 'p> {
         extra_fields: ExtraFields,
         external_attributes: u16,
     },
+    Reader {
+        reader: Box<dyn Read + Send + Sync>,
+        compression_level: CompressionLevel,
+        compression_type: CompressionType,
+        extra_fields: ExtraFields,
+        external_attributes: u16,
+    },
+}
+
+impl<'d, 'p> std::fmt::Debug for ZipJobOrigin<'d, 'p> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Filesystem {
+                path,
+                compression_level,
+                compression_type,
+            } => f
+                .debug_struct("Filesystem")
+                .field("path", path)
+                .field("compression_level", compression_level)
+                .field("compression_type", compression_type)
+                .finish(),
+            Self::RawData {
+                data,
+                compression_level,
+                compression_type,
+                extra_fields,
+                external_attributes,
+            } => f
+                .debug_struct("RawData")
+                .field("data", data)
+                .field("compression_level", compression_level)
+                .field("compression_type", compression_type)
+                .field("extra_fields", extra_fields)
+                .field("external_attributes", external_attributes)
+                .finish(),
+            Self::Directory {
+                extra_fields,
+                external_attributes,
+            } => f
+                .debug_struct("Directory")
+                .field("extra_fields", extra_fields)
+                .field("external_attributes", external_attributes)
+                .finish(),
+            Self::Reader {
+                reader: _,
+                compression_level,
+                compression_type,
+                extra_fields,
+                external_attributes,
+            } => f
+                .debug_struct("Reader")
+                .field("compression_level", compression_level)
+                .field("compression_type", compression_type)
+                .field("extra_fields", extra_fields)
+                .field("external_attributes", external_attributes)
+                .finish_non_exhaustive(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -67,7 +125,7 @@ impl ZipJob<'_, '_> {
 
     fn gen_file<R: Read>(
         source: R,
-        uncompressed_size: u32,
+        uncompressed_size: Option<u32>,
         archive_path: String,
         attributes: u16,
         compression_level: CompressionLevel,
@@ -75,22 +133,21 @@ impl ZipJob<'_, '_> {
         extra_fields: ExtraFields,
     ) -> std::io::Result<ZipFile> {
         let mut crc_reader = CrcReader::new(source);
-        let mut data = Vec::with_capacity(uncompressed_size as usize);
-        match compression_type {
+        let mut data = Vec::with_capacity(uncompressed_size.unwrap_or(0) as usize);
+        let uncompressed_size = match compression_type {
             CompressionType::Deflate => {
                 let mut encoder = DeflateEncoder::new(&mut crc_reader, compression_level.into());
-                encoder.read_to_end(&mut data)?;
+                encoder.read_to_end(&mut data)?
             }
-            CompressionType::Stored => {
-                crc_reader.read_to_end(&mut data)?;
-            }
-        }
+            CompressionType::Stored => crc_reader.read_to_end(&mut data)?,
+        };
+        debug_assert!(uncompressed_size <= u32::MAX as usize);
         data.shrink_to_fit();
         let crc = crc_reader.crc().sum();
         Ok(ZipFile {
             compression_type: CompressionType::Deflate,
             crc,
-            uncompressed_size,
+            uncompressed_size: uncompressed_size as u32,
             filename: archive_path,
             data,
             external_file_attributes: (attributes as u32) << 16,
@@ -121,7 +178,7 @@ impl ZipJob<'_, '_> {
                 let extra_fields = ExtraFields::new_from_fs(&file_metadata);
                 Self::gen_file(
                     file,
-                    uncompressed_size,
+                    Some(uncompressed_size),
                     self.archive_path,
                     external_file_attributes,
                     compression_level,
@@ -140,7 +197,7 @@ impl ZipJob<'_, '_> {
                 let uncompressed_size = data.len() as u32;
                 Self::gen_file(
                     data.as_ref(),
-                    uncompressed_size,
+                    Some(uncompressed_size),
                     self.archive_path,
                     external_attributes,
                     compression_level,
@@ -148,6 +205,21 @@ impl ZipJob<'_, '_> {
                     extra_fields,
                 )
             }
+            ZipJobOrigin::Reader {
+                reader,
+                compression_level,
+                compression_type,
+                extra_fields,
+                external_attributes,
+            } => Self::gen_file(
+                reader,
+                None,
+                self.archive_path,
+                external_attributes,
+                compression_level,
+                compression_type,
+                extra_fields,
+            ),
         }
     }
 }
