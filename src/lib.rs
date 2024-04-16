@@ -37,7 +37,7 @@
 
 use std::{
     borrow::Cow,
-    io::{Seek, Write},
+    io::{Read, Seek, Write},
     num::NonZeroUsize,
     path::Path,
     sync::{mpsc, Mutex},
@@ -80,13 +80,13 @@ pub enum CompressionType {
 /// The lifetime `'p` indicates the lifetime of borrowed [`Path`] supplied in
 /// [`add_file_from_fs`](Self::add_file_from_fs).
 #[derive(Debug, Default)]
-pub struct ZipArchive<'d, 'p> {
-    jobs_queue: Vec<ZipJob<'d, 'p>>,
+pub struct ZipArchive<'d, 'p, 'r> {
+    jobs_queue: Vec<ZipJob<'d, 'p, 'r>>,
     data: ZipData,
 }
 
-impl<'d, 'p> ZipArchive<'d, 'p> {
-    fn push_job(&mut self, job: ZipJob<'d, 'p>) {
+impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
+    fn push_job(&mut self, job: ZipJob<'d, 'p, 'r>) {
         self.jobs_queue.push(job);
     }
 
@@ -161,6 +161,39 @@ impl<'d, 'p> ZipArchive<'d, 'p> {
             archive_path: archived_path,
         };
         self.push_job(job);
+    }
+
+    /// Add a file with data from a reader.
+    ///
+    /// This method takes any type implementing [`Read`] and allows it to have borrowed data (`'r`)
+    ///
+    /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
+    ///
+    /// `compression_level` is ignored when [`CompressionType::Stored`] is used. Default value is
+    /// [`CompressionLevel::best`].
+    ///
+    /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
+    /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
+    pub fn add_file_from_reader<R: Read + Send + Sync + 'r>(
+        &mut self,
+        reader: R,
+        archived_path: String,
+        compression_level: Option<CompressionLevel>,
+        compression_type: Option<CompressionType>,
+        file_attributes: Option<u16>,
+        extra_fields: Option<ExtraFields>,
+    ) {
+        let job = ZipJob {
+            data_origin: ZipJobOrigin::Reader {
+                reader: Box::new(reader),
+                compression_level: compression_level.unwrap_or(CompressionLevel::best()),
+                compression_type: compression_type.unwrap_or(CompressionType::Deflate),
+                external_attributes: file_attributes.unwrap_or(ZipFile::default_file_attrs()),
+                extra_fields: extra_fields.unwrap_or_default(),
+            },
+            archive_path: archived_path,
+        };
+        self.push_job(job)
     }
 
     /// Add a directory entry.

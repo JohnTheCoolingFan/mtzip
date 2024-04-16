@@ -11,7 +11,7 @@ use flate2::{read::DeflateEncoder, CrcReader};
 use super::{extra_field::ExtraFields, file::ZipFile};
 use crate::{level::CompressionLevel, CompressionType};
 
-pub enum ZipJobOrigin<'d, 'p> {
+pub enum ZipJobOrigin<'d, 'p, 'r> {
     Filesystem {
         path: Cow<'p, Path>,
         compression_level: CompressionLevel,
@@ -29,7 +29,7 @@ pub enum ZipJobOrigin<'d, 'p> {
         external_attributes: u16,
     },
     Reader {
-        reader: Box<dyn Read + Send + Sync>,
+        reader: Box<dyn Read + Send + Sync + 'r>,
         compression_level: CompressionLevel,
         compression_type: CompressionType,
         extra_fields: ExtraFields,
@@ -37,7 +37,7 @@ pub enum ZipJobOrigin<'d, 'p> {
     },
 }
 
-impl<'d, 'p> std::fmt::Debug for ZipJobOrigin<'d, 'p> {
+impl<'d, 'p, 'r> std::fmt::Debug for ZipJobOrigin<'d, 'p, 'r> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Filesystem {
@@ -90,12 +90,12 @@ impl<'d, 'p> std::fmt::Debug for ZipJobOrigin<'d, 'p> {
 }
 
 #[derive(Debug)]
-pub struct ZipJob<'a, 'p> {
-    pub data_origin: ZipJobOrigin<'a, 'p>,
+pub struct ZipJob<'a, 'p, 'r> {
+    pub data_origin: ZipJobOrigin<'a, 'p, 'r>,
     pub archive_path: String,
 }
 
-impl ZipJob<'_, '_> {
+impl ZipJob<'_, '_, '_> {
     #[inline]
     const fn convert_attrs(attrs: u32) -> u16 {
         (attrs & 0xFFFF) as u16
