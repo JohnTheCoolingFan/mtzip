@@ -39,6 +39,7 @@ use std::{
     borrow::Cow,
     io::{Read, Seek, Write},
     num::NonZeroUsize,
+    panic::{RefUnwindSafe, UnwindSafe},
     path::Path,
     sync::{mpsc, Mutex},
 };
@@ -182,7 +183,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///
     /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
     /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
-    pub fn add_file_from_reader<R: Read + Send + Sync + 'r>(
+    pub fn add_file_from_reader<R: Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>(
         &mut self,
         reader: R,
         archived_path: String,

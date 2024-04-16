@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     fs::{File, Metadata},
     io::Read,
+    panic::{RefUnwindSafe, UnwindSafe},
     path::Path,
 };
 
@@ -29,7 +30,7 @@ pub enum ZipJobOrigin<'d, 'p, 'r> {
         external_attributes: u16,
     },
     Reader {
-        reader: Box<dyn Read + Send + Sync + 'r>,
+        reader: Box<dyn Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>,
         compression_level: CompressionLevel,
         compression_type: CompressionType,
         extra_fields: ExtraFields,
