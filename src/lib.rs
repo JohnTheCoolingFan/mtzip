@@ -74,11 +74,19 @@ pub enum CompressionType {
 
 /// Structure that holds the current state of ZIP archive creation.
 ///
-/// The lifetime `'d` indicates the lifetime of borrowed data supplied in
-/// [`add_file_from_memory`](Self::add_file_from_memory).
+/// # Lifetimes
 ///
-/// The lifetime `'p` indicates the lifetime of borrowed [`Path`] supplied in
-/// [`add_file_from_fs`](Self::add_file_from_fs).
+/// Because some of the methods allow supplying borrowed data, the lifetimes are used to indicate
+/// that [`Self`](ZipArchive) borrows them. If you only provide owned data, such as
+/// [`Vec<u8>`](Vec) or [`PathBuf`](std::path::PathBuf), you won't have to worry about lifetimes
+/// and can simply use `'static`, if you ever need to specify them in your code.
+///
+/// - `'d` is the lifetime of borrowed data added via
+/// [`add_file_from_memory`](Self::add_file_from_memory)
+/// - `'p` is the lifetime of borrowed [`Path`]s used in
+/// [`add_file_from_fs`](Self::add_file_from_fs)
+/// - `'r` is the lifetime of of borrowed data in readers supplied to
+/// [`add_file_from_reader`](Self::add_file_from_reader)
 #[derive(Debug, Default)]
 pub struct ZipArchive<'d, 'p, 'r> {
     jobs_queue: Vec<ZipJob<'d, 'p, 'r>>,
