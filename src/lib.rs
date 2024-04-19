@@ -291,19 +291,21 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// zipper.compress_with_threads(threads);
     /// ```
     pub fn compress_with_threads(&mut self, threads: usize) {
-        let (tx, rx) = mpsc::channel();
         let jobs_drain = Mutex::new(self.jobs_queue.drain(..));
         let jobs_drain_ref = &jobs_drain;
         std::thread::scope(|s| {
-            for _ in 0..threads {
-                let thread_tx = tx.clone();
-                s.spawn(move || {
-                    while let Some(job) = { jobs_drain_ref.lock().unwrap().next() } {
-                        thread_tx.send(job.into_file().unwrap()).unwrap();
-                    }
-                });
-            }
-            drop(tx);
+            let rx = {
+                let (tx, rx) = mpsc::channel();
+                for _ in 0..threads {
+                    let thread_tx = tx.clone();
+                    s.spawn(move || {
+                        while let Some(job) = { jobs_drain_ref.lock().unwrap().next() } {
+                            thread_tx.send(job.into_file().unwrap()).unwrap();
+                        }
+                    });
+                }
+                rx
+            };
             self.data.files.extend(rx.iter());
         });
     }
