@@ -303,9 +303,9 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
                     }
                 });
             }
+            drop(tx);
+            self.data.files.extend(rx.iter());
         });
-        drop(tx);
-        self.data.files.extend(rx.iter());
     }
 
     /// Write compressed data to a writer (usually a file). Executes [`compress`](Self::compress)
