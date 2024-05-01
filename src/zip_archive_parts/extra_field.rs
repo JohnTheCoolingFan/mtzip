@@ -227,6 +227,9 @@ impl ExtraField {
         }
     }
 
+    const NTFS_FIELD_LEN: usize = 32;
+    const UNIX_ATTRS_LEN: usize = 11;
+
     pub(crate) fn write<W: Write, const CENTRAL_HEADER: bool>(
         self,
         writer: &mut W,
@@ -242,20 +245,28 @@ impl ExtraField {
                 atime,
                 ctime,
             } => {
-                // Reserved field
-                writer.write_all(&0_u32.to_le_bytes())?;
+                // Writing to a temporary in-memory array
+                let mut field = [0; Self::NTFS_FIELD_LEN];
+                {
+                    let mut field_buf: &mut [u8] = &mut field;
 
-                // Tag1 number
-                writer.write_all(&1_u16.to_le_bytes())?;
-                // Tag1 size
-                writer.write_all(&24_u16.to_le_bytes())?;
+                    // Reserved field
+                    field_buf.write_all(&0_u32.to_le_bytes())?;
 
-                // Mtime
-                writer.write_all(&mtime.to_le_bytes())?;
-                // Atime
-                writer.write_all(&atime.to_le_bytes())?;
-                // Ctime
-                writer.write_all(&ctime.to_le_bytes())?;
+                    // Tag1 number
+                    field_buf.write_all(&1_u16.to_le_bytes())?;
+                    // Tag1 size
+                    field_buf.write_all(&24_u16.to_le_bytes())?;
+
+                    // Mtime
+                    field_buf.write_all(&mtime.to_le_bytes())?;
+                    // Atime
+                    field_buf.write_all(&atime.to_le_bytes())?;
+                    // Ctime
+                    field_buf.write_all(&ctime.to_le_bytes())?;
+                }
+
+                writer.write_all(&field)?;
             }
             Self::UnixExtendedTimestamp {
                 mod_time,
@@ -279,16 +290,24 @@ impl ExtraField {
                 }
             }
             Self::UnixAttrs { uid, gid } => {
-                // Version of the field
-                writer.write_all(&[1])?;
-                // UID size
-                writer.write_all(&[4])?;
-                // UID
-                writer.write_all(&uid.to_le_bytes())?;
-                // GID size
-                writer.write_all(&[4])?;
-                // GID
-                writer.write_all(&gid.to_le_bytes())?;
+                // Writing to a temporary in-memory array
+                let mut field = [0; Self::UNIX_ATTRS_LEN];
+                {
+                    let mut field_buf: &mut [u8] = &mut field;
+
+                    // Version of the field
+                    field_buf.write_all(&[1])?;
+                    // UID size
+                    field_buf.write_all(&[4])?;
+                    // UID
+                    field_buf.write_all(&uid.to_le_bytes())?;
+                    // GID size
+                    field_buf.write_all(&[4])?;
+                    // GID
+                    field_buf.write_all(&gid.to_le_bytes())?;
+                }
+
+                writer.write_all(&field)?;
             }
         }
 
