@@ -1,4 +1,4 @@
-use std::io::{Seek, Write};
+use std::io::Write;
 
 use cfg_if::cfg_if;
 
@@ -70,10 +70,7 @@ impl ZipFile {
 
     const LOCAL_FILE_HEADER_LEN: usize = 30;
 
-    pub fn write_local_file_header_and_data<W: Write + Seek>(
-        &self,
-        buf: &mut W,
-    ) -> std::io::Result<()> {
+    pub fn write_local_file_header_and_data<W: Write>(&self, buf: &mut W) -> std::io::Result<()> {
         // Writing to a temporary in-memory statically sized array first
         let mut header = [0; Self::LOCAL_FILE_HEADER_LEN];
         {
@@ -120,7 +117,7 @@ impl ZipFile {
 
     const CENTRAL_DIR_ENTRY_LEN: usize = 46;
 
-    pub fn write_central_directory_entry<W: Write + Seek>(
+    pub fn write_central_directory_entry<W: Write>(
         &self,
         buf: &mut W,
         local_header_offset: u32,
