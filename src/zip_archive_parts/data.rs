@@ -29,11 +29,30 @@ impl ZipData {
         amount as u16
     }
 
+    #[inline]
     pub fn write_files<W: Write + Seek>(
         &mut self,
         buf: &mut W,
     ) -> std::io::Result<Vec<ZipFileNoData>> {
-        std::mem::take(&mut self.files)
+        self.write_files_contained_and_iter(buf, std::iter::empty())
+    }
+
+    #[inline]
+    pub fn write_files_contained_and_iter<W: Write + Seek, I: IntoIterator<Item = ZipFile>>(
+        &mut self,
+        buf: &mut W,
+        zip_files_iter: I,
+    ) -> std::io::Result<Vec<ZipFileNoData>> {
+        let zip_files = std::mem::take(&mut self.files);
+        self.write_files_iter(buf, zip_files.into_iter().chain(zip_files_iter))
+    }
+
+    pub fn write_files_iter<W: Write + Seek, I: IntoIterator<Item = ZipFile>>(
+        &mut self,
+        buf: &mut W,
+        zip_files: I,
+    ) -> std::io::Result<Vec<ZipFileNoData>> {
+        zip_files
             .into_iter()
             .map(|zipfile| zipfile.write_local_file_header_with_data_consuming(buf))
             .collect::<std::io::Result<Vec<_>>>()
