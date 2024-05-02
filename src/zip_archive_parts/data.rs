@@ -10,8 +10,12 @@ pub struct ZipData {
 }
 
 impl ZipData {
-    pub fn write<W: Write + Seek>(&mut self, buf: &mut W) -> std::io::Result<()> {
-        let zip_files = self.write_files(buf)?;
+    pub fn write<W: Write + Seek, I: IntoIterator<Item = ZipFile>>(
+        &mut self,
+        buf: &mut W,
+        zip_file_iter: I,
+    ) -> std::io::Result<()> {
+        let zip_files = self.write_files_contained_and_iter(buf, zip_file_iter)?;
 
         let central_dir_offset = super::stream_position_u32(buf)?;
 
@@ -27,14 +31,6 @@ impl ZipData {
         let amount = self.files.len();
         debug_assert!(amount <= u16::MAX as usize);
         amount as u16
-    }
-
-    #[inline]
-    pub fn write_files<W: Write + Seek>(
-        &mut self,
-        buf: &mut W,
-    ) -> std::io::Result<Vec<ZipFileNoData>> {
-        self.write_files_contained_and_iter(buf, std::iter::empty())
     }
 
     #[inline]

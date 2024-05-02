@@ -290,24 +290,9 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///
     /// zipper.compress_with_threads(threads);
     /// ```
+    #[inline]
     pub fn compress_with_threads(&mut self, threads: usize) {
-        let jobs_drain = Mutex::new(self.jobs_queue.drain(..));
-        let jobs_drain_ref = &jobs_drain;
-        std::thread::scope(|s| {
-            let rx = {
-                let (tx, rx) = mpsc::channel();
-                for _ in 0..threads {
-                    let thread_tx = tx.clone();
-                    s.spawn(move || {
-                        while let Some(job) = { jobs_drain_ref.lock().unwrap().next() } {
-                            thread_tx.send(job.into_file().unwrap()).unwrap();
-                        }
-                    });
-                }
-                rx
-            };
-            self.data.files.extend(rx.iter());
-        });
+        self.compress_with_consumer(threads, |zip_data, rx| zip_data.files.extend(rx))
     }
 
     /// Write compressed data to a writer (usually a file). Executes [`compress`](Self::compress)
@@ -332,15 +317,43 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///
     /// zipper.compress_with_threads(threads);
     /// ```
+    #[inline]
     pub fn write_with_threads<W: Write + Seek>(
         &mut self,
         writer: &mut W,
         threads: usize,
     ) -> std::io::Result<()> {
         if !self.jobs_queue.is_empty() {
-            self.compress_with_threads(threads)
+            self.compress_with_consumer(threads, |zip_data, rx| zip_data.write(writer, rx))
+        } else {
+            self.data.write(writer, std::iter::empty())
         }
-        self.data.write(writer)
+    }
+
+    /// Starts the compression jobs and passes teh mpsc receiver to teh consumer function, which
+    /// might either store the data in [`ZipData`] - [`Self::compress_with_threads`]; or write the
+    /// zip data as soon as it's available - [`Self::write_with_threads`]
+    fn compress_with_consumer<F, T>(&mut self, threads: usize, consumer: F) -> T
+    where
+        F: FnOnce(&mut ZipData, mpsc::Receiver<ZipFile>) -> T,
+    {
+        let jobs_drain = Mutex::new(self.jobs_queue.drain(..));
+        let jobs_drain_ref = &jobs_drain;
+        std::thread::scope(|s| {
+            let rx = {
+                let (tx, rx) = mpsc::channel();
+                for _ in 0..threads {
+                    let thread_tx = tx.clone();
+                    s.spawn(move || {
+                        while let Some(job) = { jobs_drain_ref.lock().unwrap().next() } {
+                            thread_tx.send(job.into_file().unwrap()).unwrap();
+                        }
+                    });
+                }
+                rx
+            };
+            consumer(&mut self.data, rx)
+        })
     }
 
     fn get_threads() -> usize {
