@@ -34,13 +34,24 @@ const GENERAL_PURPOSE_BIT_FLAG: u16 = 1 << 11;
 
 #[derive(Debug)]
 pub struct ZipFile {
+    pub header: ZipFileHeader,
+    pub data: Vec<u8>,
+}
+
+#[derive(Debug)]
+pub struct ZipFileHeader {
     pub compression_type: CompressionType,
     pub crc: u32,
     pub uncompressed_size: u32,
     pub filename: String,
-    pub data: Vec<u8>,
     pub external_file_attributes: u32,
     pub extra_fields: ExtraFields,
+}
+
+#[derive(Debug)]
+pub struct ZipFileNoData {
+    pub header: ZipFileHeader,
+    pub compressed_size: u32,
 }
 
 impl ZipFile {
@@ -83,31 +94,37 @@ impl ZipFile {
             // general purpose bit flag
             header_buf.write_all(&GENERAL_PURPOSE_BIT_FLAG.to_le_bytes())?;
             // compression type
-            header_buf.write_all(&(self.compression_type as u16).to_le_bytes())?;
+            header_buf.write_all(&(self.header.compression_type as u16).to_le_bytes())?;
             // Last modification time // moved to extra fields
             header_buf.write_all(&0_u16.to_le_bytes())?;
             // Last modification date // moved to extra fields
             header_buf.write_all(&0_u16.to_le_bytes())?;
             // crc
-            header_buf.write_all(&self.crc.to_le_bytes())?;
+            header_buf.write_all(&self.header.crc.to_le_bytes())?;
             // Compressed size
             debug_assert!(self.data.len() <= u32::MAX as usize);
             header_buf.write_all(&(self.data.len() as u32).to_le_bytes())?;
             // Uncompressed size
-            header_buf.write_all(&self.uncompressed_size.to_le_bytes())?;
+            header_buf.write_all(&self.header.uncompressed_size.to_le_bytes())?;
             // Filename size
-            debug_assert!(self.filename.len() <= u16::MAX as usize);
-            header_buf.write_all(&(self.filename.len() as u16).to_le_bytes())?;
+            debug_assert!(self.header.filename.len() <= u16::MAX as usize);
+            header_buf.write_all(&(self.header.filename.len() as u16).to_le_bytes())?;
             // extra field size
-            header_buf.write_all(&self.extra_fields.data_length::<false>().to_le_bytes())?;
+            header_buf.write_all(
+                &self
+                    .header
+                    .extra_fields
+                    .data_length::<false>()
+                    .to_le_bytes(),
+            )?;
         }
 
         buf.write_all(&header)?;
 
         // Filename
-        buf.write_all(self.filename.as_bytes())?;
+        buf.write_all(self.header.filename.as_bytes())?;
         // Extra field
-        self.extra_fields.write::<_, false>(buf)?;
+        self.header.extra_fields.write::<_, false>(buf)?;
 
         // Data
         buf.write_all(&self.data)?;
@@ -136,24 +153,25 @@ impl ZipFile {
             // general purpose bit flag
             central_dir_entry_buf.write_all(&GENERAL_PURPOSE_BIT_FLAG.to_le_bytes())?;
             // compression type
-            central_dir_entry_buf.write_all(&(self.compression_type as u16).to_le_bytes())?;
+            central_dir_entry_buf
+                .write_all(&(self.header.compression_type as u16).to_le_bytes())?;
             // Last modification time // moved to extra fields
             central_dir_entry_buf.write_all(&0_u16.to_le_bytes())?;
             // Last modification date // moved to extra fields
             central_dir_entry_buf.write_all(&0_u16.to_le_bytes())?;
             // crc
-            central_dir_entry_buf.write_all(&self.crc.to_le_bytes())?;
+            central_dir_entry_buf.write_all(&self.header.crc.to_le_bytes())?;
             // Compressed size
             debug_assert!(self.data.len() <= u32::MAX as usize);
             central_dir_entry_buf.write_all(&(self.data.len() as u32).to_le_bytes())?;
             // Uncompressed size
-            central_dir_entry_buf.write_all(&self.uncompressed_size.to_le_bytes())?;
+            central_dir_entry_buf.write_all(&self.header.uncompressed_size.to_le_bytes())?;
             // Filename size
-            debug_assert!(self.filename.len() <= u16::MAX as usize);
-            central_dir_entry_buf.write_all(&(self.filename.len() as u16).to_le_bytes())?;
+            debug_assert!(self.header.filename.len() <= u16::MAX as usize);
+            central_dir_entry_buf.write_all(&(self.header.filename.len() as u16).to_le_bytes())?;
             // extra field size
             central_dir_entry_buf
-                .write_all(&self.extra_fields.data_length::<true>().to_le_bytes())?;
+                .write_all(&self.header.extra_fields.data_length::<true>().to_le_bytes())?;
             // comment size
             central_dir_entry_buf.write_all(&0_u16.to_le_bytes())?;
             // disk number start
@@ -161,7 +179,7 @@ impl ZipFile {
             // internal file attributes
             central_dir_entry_buf.write_all(&0_u16.to_le_bytes())?;
             // external file attributes
-            central_dir_entry_buf.write_all(&self.external_file_attributes.to_le_bytes())?;
+            central_dir_entry_buf.write_all(&self.header.external_file_attributes.to_le_bytes())?;
             // relative offset of local header
             central_dir_entry_buf.write_all(&local_header_offset.to_le_bytes())?;
         }
@@ -169,9 +187,9 @@ impl ZipFile {
         buf.write_all(&central_dir_entry_header)?;
 
         // Filename
-        buf.write_all(self.filename.as_bytes())?;
+        buf.write_all(self.header.filename.as_bytes())?;
         // Extra field
-        self.extra_fields.write::<_, true>(buf)?;
+        self.header.extra_fields.write::<_, true>(buf)?;
 
         Ok(())
     }
@@ -186,13 +204,15 @@ impl ZipFile {
             name += "/"
         };
         Self {
-            compression_type: CompressionType::Stored,
-            crc: 0,
-            uncompressed_size: 0,
-            filename: name,
+            header: ZipFileHeader {
+                compression_type: CompressionType::Stored,
+                crc: 0,
+                uncompressed_size: 0,
+                filename: name,
+                external_file_attributes: (external_attributes as u32) << 16,
+                extra_fields,
+            },
             data: vec![],
-            external_file_attributes: (external_attributes as u32) << 16,
-            extra_fields,
         }
     }
 }

@@ -10,7 +10,7 @@ use cfg_if::cfg_if;
 use flate2::{read::DeflateEncoder, CrcReader};
 
 use super::{extra_field::ExtraFields, file::ZipFile};
-use crate::{level::CompressionLevel, CompressionType};
+use crate::{level::CompressionLevel, zip_archive_parts::file::ZipFileHeader, CompressionType};
 
 pub enum ZipJobOrigin<'d, 'p, 'r> {
     Filesystem {
@@ -146,13 +146,15 @@ impl ZipJob<'_, '_, '_> {
         data.shrink_to_fit();
         let crc = crc_reader.crc().sum();
         Ok(ZipFile {
-            compression_type: CompressionType::Deflate,
-            crc,
-            uncompressed_size: uncompressed_size as u32,
-            filename: archive_path,
+            header: ZipFileHeader {
+                compression_type: CompressionType::Deflate,
+                crc,
+                uncompressed_size: uncompressed_size as u32,
+                filename: archive_path,
+                external_file_attributes: (attributes as u32) << 16,
+                extra_fields,
+            },
             data,
-            external_file_attributes: (attributes as u32) << 16,
-            extra_fields,
         })
     }
 
