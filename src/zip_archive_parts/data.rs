@@ -12,20 +12,23 @@ pub struct ZipData {
 impl ZipData {
     const FOOTER_LENGTH: usize = 22;
 
-    pub fn write<W: Write + Seek>(&self, buf: &mut W) -> std::io::Result<()> {
-        let mut offsets: Vec<u32> = Vec::with_capacity(self.files.len());
+    pub fn write<W: Write + Seek>(&mut self, buf: &mut W) -> std::io::Result<()> {
+        let zip_files = std::mem::take(&mut self.files);
+
         // Zip file records
-        for file in &self.files {
-            debug_assert!(buf.stream_position()? <= u32::MAX.into());
-            offsets.push(buf.stream_position()? as u32);
-            file.write_local_file_header_and_data(buf)?;
-        }
+        let zip_files = zip_files
+            .into_iter()
+            .map(|zipfile| zipfile.write_local_file_header_with_data_consuming(buf))
+            .collect::<std::io::Result<Vec<_>>>()?;
+
+        // Central directory offset
         debug_assert!(buf.stream_position()? <= u32::MAX.into());
         let central_dir_offset = buf.stream_position()? as u32;
+
         // Zip directory entries
-        for (file, offset) in self.files.iter().zip(offsets.iter()) {
-            file.write_central_directory_entry(buf, *offset)?;
-        }
+        zip_files
+            .iter()
+            .try_for_each(|zip_file| zip_file.write_central_directory_entry(buf))?;
 
         // End of central dir record
         debug_assert!(buf.stream_position()? <= u32::MAX.into());

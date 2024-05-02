@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Seek, Write};
 
 use cfg_if::cfg_if;
 
@@ -51,6 +51,7 @@ pub struct ZipFileHeader {
 #[derive(Debug)]
 pub struct ZipFileNoData {
     pub header: ZipFileHeader,
+    pub local_header_offset: u32,
     pub compressed_size: u32,
 }
 
@@ -77,6 +78,22 @@ impl ZipFile {
                 0
             }
         }
+    }
+
+    pub fn write_local_file_header_with_data_consuming<W: Write + Seek>(
+        self,
+        buf: &mut W,
+    ) -> std::io::Result<ZipFileNoData> {
+        let local_header_offset = buf.stream_position()?;
+        debug_assert!(local_header_offset <= u32::MAX as u64);
+        let local_header_offset = local_header_offset as u32;
+        self.write_local_file_header_and_data(buf)?;
+        let Self { header, data } = self;
+        Ok(ZipFileNoData {
+            header,
+            local_header_offset,
+            compressed_size: data.len() as u32,
+        })
     }
 
     const LOCAL_FILE_HEADER_LEN: usize = 30;
@@ -132,13 +149,33 @@ impl ZipFile {
         Ok(())
     }
 
+    #[inline]
+    pub fn directory(
+        mut name: String,
+        extra_fields: ExtraFields,
+        external_attributes: u16,
+    ) -> Self {
+        if !(name.ends_with('/') || name.ends_with('\\')) {
+            name += "/"
+        };
+        Self {
+            header: ZipFileHeader {
+                compression_type: CompressionType::Stored,
+                crc: 0,
+                uncompressed_size: 0,
+                filename: name,
+                external_file_attributes: (external_attributes as u32) << 16,
+                extra_fields,
+            },
+            data: vec![],
+        }
+    }
+}
+
+impl ZipFileNoData {
     const CENTRAL_DIR_ENTRY_LEN: usize = 46;
 
-    pub fn write_central_directory_entry<W: Write>(
-        &self,
-        buf: &mut W,
-        local_header_offset: u32,
-    ) -> std::io::Result<()> {
+    pub fn write_central_directory_entry<W: Write>(&self, buf: &mut W) -> std::io::Result<()> {
         // Writing to a temporary in-memory statically sized array first
         let mut central_dir_entry_header = [0; Self::CENTRAL_DIR_ENTRY_LEN];
         {
@@ -162,8 +199,7 @@ impl ZipFile {
             // crc
             central_dir_entry_buf.write_all(&self.header.crc.to_le_bytes())?;
             // Compressed size
-            debug_assert!(self.data.len() <= u32::MAX as usize);
-            central_dir_entry_buf.write_all(&(self.data.len() as u32).to_le_bytes())?;
+            central_dir_entry_buf.write_all(&self.compressed_size.to_le_bytes())?;
             // Uncompressed size
             central_dir_entry_buf.write_all(&self.header.uncompressed_size.to_le_bytes())?;
             // Filename size
@@ -181,7 +217,7 @@ impl ZipFile {
             // external file attributes
             central_dir_entry_buf.write_all(&self.header.external_file_attributes.to_le_bytes())?;
             // relative offset of local header
-            central_dir_entry_buf.write_all(&local_header_offset.to_le_bytes())?;
+            central_dir_entry_buf.write_all(&self.local_header_offset.to_le_bytes())?;
         }
 
         buf.write_all(&central_dir_entry_header)?;
@@ -192,27 +228,5 @@ impl ZipFile {
         self.header.extra_fields.write::<_, true>(buf)?;
 
         Ok(())
-    }
-
-    #[inline]
-    pub fn directory(
-        mut name: String,
-        extra_fields: ExtraFields,
-        external_attributes: u16,
-    ) -> Self {
-        if !(name.ends_with('/') || name.ends_with('\\')) {
-            name += "/"
-        };
-        Self {
-            header: ZipFileHeader {
-                compression_type: CompressionType::Stored,
-                crc: 0,
-                uncompressed_size: 0,
-                filename: name,
-                external_file_attributes: (external_attributes as u32) << 16,
-                extra_fields,
-            },
-            data: vec![],
-        }
     }
 }
