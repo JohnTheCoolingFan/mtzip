@@ -84,9 +84,7 @@ impl ZipFile {
         self,
         buf: &mut W,
     ) -> std::io::Result<ZipFileNoData> {
-        let local_header_offset = buf.stream_position()?;
-        debug_assert!(local_header_offset <= u32::MAX as u64);
-        let local_header_offset = local_header_offset as u32;
+        let local_header_offset = super::stream_position_u32(buf)?;
         self.write_local_file_header_and_data(buf)?;
         let Self { header, data } = self;
         Ok(ZipFileNoData {

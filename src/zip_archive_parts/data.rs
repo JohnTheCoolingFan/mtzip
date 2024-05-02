@@ -13,20 +13,13 @@ impl ZipData {
     pub fn write<W: Write + Seek>(&mut self, buf: &mut W) -> std::io::Result<()> {
         let zip_files = self.write_files(buf)?;
 
-        let central_dir_offset = Self::stream_position_u32(buf)?;
+        let central_dir_offset = super::stream_position_u32(buf)?;
 
         self.write_central_dir(zip_files, buf)?;
 
-        let central_dir_start = Self::stream_position_u32(buf)?;
+        let central_dir_start = super::stream_position_u32(buf)?;
 
         self.write_end_of_central_directory(buf, central_dir_offset, central_dir_start)
-    }
-
-    #[inline]
-    pub fn stream_position_u32<W: Seek>(buf: &mut W) -> std::io::Result<u32> {
-        let offset = buf.stream_position()?;
-        debug_assert!(offset <= u32::MAX.into());
-        Ok(offset as u32)
     }
 
     #[inline]
