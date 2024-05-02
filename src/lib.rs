@@ -344,9 +344,12 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
                 let (tx, rx) = mpsc::channel();
                 for _ in 0..threads {
                     let thread_tx = tx.clone();
-                    s.spawn(move || {
-                        while let Some(job) = { jobs_drain_ref.lock().unwrap().next() } {
+                    s.spawn(move || loop {
+                        let next_job = jobs_drain_ref.lock().unwrap().next();
+                        if let Some(job) = next_job {
                             thread_tx.send(job.into_file().unwrap()).unwrap();
+                        } else {
+                            break;
                         }
                     });
                 }
