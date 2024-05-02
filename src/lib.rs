@@ -345,7 +345,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
                 for _ in 0..threads {
                     let thread_tx = tx.clone();
                     s.spawn(move || loop {
-                        let next_job = jobs_drain_ref.lock().unwrap().next();
+                        let next_job = jobs_drain_ref.lock().unwrap().next_back();
                         if let Some(job) = next_job {
                             thread_tx.send(job.into_file().unwrap()).unwrap();
                         } else {
