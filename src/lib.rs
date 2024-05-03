@@ -374,11 +374,13 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///
     /// Uses whatever thread pool this function is executed in.
     pub fn compress_with_rayon(&mut self) {
-        let files_par_iter = self
-            .jobs_queue
-            .par_drain(..)
-            .map(|job| job.into_file().unwrap());
-        self.data.files.par_extend(files_par_iter)
+        if !self.jobs_queue.is_empty() {
+            let files_par_iter = self
+                .jobs_queue
+                .par_drain(..)
+                .map(|job| job.into_file().unwrap());
+            self.data.files.par_extend(files_par_iter)
+        }
     }
 
     /// Write the contents to a writer.
@@ -389,10 +391,14 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
         &mut self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let files_par_iter = self
-            .jobs_queue
-            .par_drain(..)
-            .map(|job| job.into_file().unwrap());
-        self.data.write_rayon(writer, files_par_iter)
+        if !self.jobs_queue.is_empty() {
+            let files_par_iter = self
+                .jobs_queue
+                .par_drain(..)
+                .map(|job| job.into_file().unwrap());
+            self.data.write_rayon(writer, files_par_iter)
+        } else {
+            self.data.write_rayon(writer, rayon::iter::empty())
+        }
     }
 }
