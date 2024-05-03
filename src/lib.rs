@@ -294,7 +294,9 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// ```
     #[inline]
     pub fn compress_with_threads(&mut self, threads: usize) {
-        self.compress_with_consumer(threads, |zip_data, rx| zip_data.files.extend(rx))
+        if !self.jobs_queue.is_empty() {
+            self.compress_with_consumer(threads, |zip_data, rx| zip_data.files.extend(rx))
+        }
     }
 
     /// Write compressed data to a writer (usually a file). Executes [`compress`](Self::compress)
