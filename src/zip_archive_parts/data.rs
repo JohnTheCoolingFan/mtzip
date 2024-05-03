@@ -27,14 +27,14 @@ impl ZipData {
     }
 
     #[inline]
-    pub fn files_amount_u16(&self) -> u16 {
+    fn files_amount_u16(&self) -> u16 {
         let amount = self.files.len();
         debug_assert!(amount <= u16::MAX as usize);
         amount as u16
     }
 
     #[inline]
-    pub fn write_files_contained_and_iter<W: Write + Seek, I: IntoIterator<Item = ZipFile>>(
+    fn write_files_contained_and_iter<W: Write + Seek, I: IntoIterator<Item = ZipFile>>(
         &mut self,
         buf: &mut W,
         zip_files_iter: I,
@@ -54,7 +54,7 @@ impl ZipData {
             .collect::<std::io::Result<Vec<_>>>()
     }
 
-    pub fn write_central_dir<W: Write, I: IntoIterator<Item = ZipFileNoData>>(
+    fn write_central_dir<W: Write, I: IntoIterator<Item = ZipFileNoData>>(
         &self,
         zip_files: I,
         buf: &mut W,
@@ -66,7 +66,7 @@ impl ZipData {
 
     const FOOTER_LENGTH: usize = 22;
 
-    pub fn write_end_of_central_directory<W: Write>(
+    fn write_end_of_central_directory<W: Write>(
         &self,
         buf: &mut W,
         central_dir_offset: u32,
