@@ -12,7 +12,7 @@ Example usage:
 use mtzip::ZipArchive;
 
 // Creating the zipper that holds data and handles compression
-let zipper = ZipArchive::default();
+let mut zipper = ZipArchive::new();
 
 // Adding a file from filesystem
 zipper.add_file_from_fs("input/test_text_file.txt", "test_text_file.txt");
