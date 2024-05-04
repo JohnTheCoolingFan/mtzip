@@ -138,7 +138,8 @@ impl ZipJob<'_, '_, '_> {
         let uncompressed_size = match compression_type {
             CompressionType::Deflate => {
                 let mut encoder = DeflateEncoder::new(&mut crc_reader, compression_level.into());
-                encoder.read_to_end(&mut data)?
+                encoder.read_to_end(&mut data)?;
+                encoder.total_in() as usize
             }
             CompressionType::Stored => crc_reader.read_to_end(&mut data)?,
         };
