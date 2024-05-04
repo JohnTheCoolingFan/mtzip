@@ -143,13 +143,14 @@ impl ZipJob<'_, '_, '_> {
             CompressionType::Stored => crc_reader.read_to_end(&mut data)?,
         };
         debug_assert!(uncompressed_size <= u32::MAX as usize);
+        let uncompressed_size = uncompressed_size as u32;
         data.shrink_to_fit();
         let crc = crc_reader.crc().sum();
         Ok(ZipFile {
             header: ZipFileHeader {
                 compression_type: CompressionType::Deflate,
                 crc,
-                uncompressed_size: uncompressed_size as u32,
+                uncompressed_size,
                 filename: archive_path,
                 external_file_attributes: (attributes as u32) << 16,
                 extra_fields,
@@ -175,8 +176,9 @@ impl ZipJob<'_, '_, '_> {
             } => {
                 let file = File::open(path).unwrap();
                 let file_metadata = file.metadata().unwrap();
-                debug_assert!(file_metadata.len() <= u32::MAX.into());
-                let uncompressed_size = file_metadata.len() as u32;
+                let uncompressed_size = file_metadata.len();
+                debug_assert!(uncompressed_size <= u32::MAX.into());
+                let uncompressed_size = uncompressed_size as u32;
                 let external_file_attributes = Self::attributes_from_fs(&file_metadata);
                 let extra_fields = ExtraFields::new_from_fs(&file_metadata);
                 Self::gen_file(
@@ -196,8 +198,9 @@ impl ZipJob<'_, '_, '_> {
                 extra_fields,
                 external_attributes,
             } => {
-                debug_assert!(data.len() <= u32::MAX as usize);
-                let uncompressed_size = data.len() as u32;
+                let uncompressed_size = data.len();
+                debug_assert!(uncompressed_size <= u32::MAX as usize);
+                let uncompressed_size = uncompressed_size as u32;
                 Self::gen_file(
                     data.as_ref(),
                     Some(uncompressed_size),
