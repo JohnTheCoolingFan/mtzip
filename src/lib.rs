@@ -375,6 +375,10 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// Compress contents and use rayon for parallelism.
     ///
     /// Uses whatever thread pool this function is executed in.
+    ///
+    /// If you want to limit the amount of threads to be used, use
+    /// [`rayon::ThreadPoolBuilder::num_threads`] and either set it as a global pool, or
+    /// [`rayon::ThreadPool::install`] the call to this method in it.
     pub fn compress_with_rayon(&mut self) {
         if !self.jobs_queue.is_empty() {
             let files_par_iter = self
@@ -387,8 +391,8 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
 
     /// Write the contents to a writer.
     ///
-    /// This function will call [`compress_with_rayon`](Self::compress_with_rayon) if there are any
-    /// jobs in the queue. See the documentation of that method for details on parallelism.
+    /// This method uses teh same thread logic as [`Self::compress_with_rayon`], refer to  its
+    /// documentation for details on how to control the parallelism and thread allocation.
     pub fn write_with_rayon<W: Write + Seek + Send>(
         &mut self,
         writer: &mut W,
