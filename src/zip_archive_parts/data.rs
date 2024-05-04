@@ -22,13 +22,20 @@ impl ZipData {
     ) -> std::io::Result<()> {
         let zip_files = self.write_files_contained_and_iter(buf, zip_file_iter)?;
 
+        let files_amount = super::files_amount_u16(&zip_files);
+
         let central_dir_offset = super::stream_position_u32(buf)?;
 
         self.write_central_dir(zip_files, buf)?;
 
         let central_dir_start = super::stream_position_u32(buf)?;
 
-        self.write_end_of_central_directory(buf, central_dir_offset, central_dir_start)
+        self.write_end_of_central_directory(
+            buf,
+            central_dir_offset,
+            central_dir_start,
+            files_amount,
+        )
     }
 
     #[cfg(feature = "rayon")]
@@ -39,20 +46,20 @@ impl ZipData {
     ) -> std::io::Result<()> {
         let zip_files = self.write_files_contained_and_par_iter(buf, zip_file_iter)?;
 
+        let files_amount = super::files_amount_u16(&zip_files);
+
         let central_dir_offset = super::stream_position_u32(buf)?;
 
         self.write_central_dir(zip_files, buf)?;
 
         let central_dir_start = super::stream_position_u32(buf)?;
 
-        self.write_end_of_central_directory(buf, central_dir_offset, central_dir_start)
-    }
-
-    #[inline]
-    fn files_amount_u16(&self) -> u16 {
-        let amount = self.files.len();
-        debug_assert!(amount <= u16::MAX as usize);
-        amount as u16
+        self.write_end_of_central_directory(
+            buf,
+            central_dir_offset,
+            central_dir_start,
+            files_amount,
+        )
     }
 
     #[inline]
@@ -122,12 +129,11 @@ impl ZipData {
         buf: &mut W,
         central_dir_offset: u32,
         central_dir_start: u32,
+        files_amount: u16,
     ) -> std::io::Result<()> {
         // Temporary in-memory statically sized array
         let mut central_dir = [0; Self::FOOTER_LENGTH];
         {
-            let files_amount = self.files_amount_u16();
-
             let mut central_dir_buf: &mut [u8] = &mut central_dir;
 
             // Signature
