@@ -85,11 +85,11 @@ pub enum CompressionType {
 /// and can simply use `'static`, if you ever need to specify them in your code.
 ///
 /// - `'d` is the lifetime of borrowed data added via
-/// [`add_file_from_memory`](Self::add_file_from_memory)
+///   [`add_file_from_memory`](Self::add_file_from_memory)
 /// - `'p` is the lifetime of borrowed [`Path`]s used in
-/// [`add_file_from_fs`](Self::add_file_from_fs)
+///   [`add_file_from_fs`](Self::add_file_from_fs)
 /// - `'r` is the lifetime of of borrowed data in readers supplied to
-/// [`add_file_from_reader`](Self::add_file_from_reader)
+///   [`add_file_from_reader`](Self::add_file_from_reader)
 #[derive(Debug, Default)]
 pub struct ZipArchive<'d, 'p, 'r> {
     jobs_queue: Vec<ZipJob<'d, 'p, 'r>>,
