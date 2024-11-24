@@ -46,6 +46,7 @@ pub enum ZipJobOrigin<'d, 'p, 'r> {
 pub struct ZipJob<'a, 'p, 'r> {
     pub data_origin: ZipJobOrigin<'a, 'p, 'r>,
     pub archive_path: String,
+    pub file_comment: Option<String>,
 }
 
 impl ZipJob<'_, '_, '_> {
@@ -84,6 +85,7 @@ impl ZipJob<'_, '_, '_> {
         compression_level: CompressionLevel,
         compression_type: CompressionType,
         extra_fields: ExtraFields,
+        file_comment: Option<String>,
     ) -> std::io::Result<ZipFile> {
         let mut crc_reader = CrcReader::new(source);
         let mut data = Vec::with_capacity(uncompressed_size.unwrap_or(0) as usize);
@@ -107,6 +109,7 @@ impl ZipJob<'_, '_, '_> {
                 filename: archive_path,
                 external_file_attributes: (attributes as u32) << 16,
                 extra_fields,
+                file_comment,
             },
             data,
         })
@@ -121,6 +124,7 @@ impl ZipJob<'_, '_, '_> {
                 self.archive_path,
                 extra_fields,
                 external_attributes,
+                self.file_comment,
             )),
             ZipJobOrigin::Filesystem {
                 path,
@@ -142,6 +146,7 @@ impl ZipJob<'_, '_, '_> {
                     compression_level,
                     compression_type,
                     extra_fields,
+                    self.file_comment,
                 )
             }
             ZipJobOrigin::RawData {
@@ -162,6 +167,7 @@ impl ZipJob<'_, '_, '_> {
                     compression_level,
                     compression_type,
                     extra_fields,
+                    self.file_comment,
                 )
             }
             ZipJobOrigin::Reader {
@@ -178,6 +184,7 @@ impl ZipJob<'_, '_, '_> {
                 compression_level,
                 compression_type,
                 extra_fields,
+                self.file_comment,
             ),
         }
     }

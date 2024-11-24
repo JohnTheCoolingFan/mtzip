@@ -42,6 +42,7 @@ pub struct ZipFileHeader {
     pub crc: u32,
     pub uncompressed_size: u32,
     pub filename: String,
+    pub file_comment: Option<String>,
     pub external_file_attributes: u32,
     pub extra_fields: ExtraFields,
 }
@@ -150,6 +151,7 @@ impl ZipFile {
         mut name: String,
         extra_fields: ExtraFields,
         external_attributes: u16,
+        file_comment: Option<String>,
     ) -> Self {
         if !(name.ends_with('/') || name.ends_with('\\')) {
             name += "/"
@@ -162,6 +164,7 @@ impl ZipFile {
                 filename: name,
                 external_file_attributes: (external_attributes as u32) << 16,
                 extra_fields,
+                file_comment,
             },
             data: vec![],
         }
@@ -205,7 +208,15 @@ impl ZipFileNoData {
             central_dir_entry_buf
                 .write_all(&self.header.extra_fields.data_length::<true>().to_le_bytes())?;
             // comment size
-            central_dir_entry_buf.write_all(&0_u16.to_le_bytes())?;
+            central_dir_entry_buf.write_all(
+                &(self
+                    .header
+                    .file_comment
+                    .as_ref()
+                    .map(|fc| fc.len())
+                    .unwrap_or(0) as u16)
+                    .to_le_bytes(),
+            )?;
             // disk number start
             central_dir_entry_buf.write_all(&0_u16.to_le_bytes())?;
             // internal file attributes
@@ -222,6 +233,10 @@ impl ZipFileNoData {
         buf.write_all(self.header.filename.as_bytes())?;
         // Extra field
         self.header.extra_fields.write::<_, true>(buf)?;
+        // File comment
+        if let Some(file_comment) = &self.header.file_comment {
+            buf.write_all(file_comment.as_bytes())?;
+        }
 
         Ok(())
     }

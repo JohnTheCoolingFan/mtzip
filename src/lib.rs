@@ -127,6 +127,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
         &mut self,
         fs_path: impl Into<Cow<'p, Path>>,
         archived_path: String,
+        comment: Option<String>,
         compression_level: Option<CompressionLevel>,
         compression_type: Option<CompressionType>,
     ) {
@@ -137,6 +138,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
                 compression_type: compression_type.unwrap_or(CompressionType::Deflate),
             },
             archive_path: archived_path,
+            file_comment: comment,
         };
         self.push_job(job);
     }
@@ -157,6 +159,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
         &mut self,
         data: impl Into<Cow<'d, [u8]>>,
         archived_path: String,
+        comment: Option<String>,
         compression_level: Option<CompressionLevel>,
         compression_type: Option<CompressionType>,
         file_attributes: Option<u16>,
@@ -171,6 +174,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
                 extra_fields: extra_fields.unwrap_or_default(),
             },
             archive_path: archived_path,
+            file_comment: comment,
         };
         self.push_job(job);
     }
@@ -190,6 +194,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
         &mut self,
         reader: R,
         archived_path: String,
+        comment: Option<String>,
         compression_level: Option<CompressionLevel>,
         compression_type: Option<CompressionType>,
         file_attributes: Option<u16>,
@@ -204,6 +209,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
                 extra_fields: extra_fields.unwrap_or_default(),
             },
             archive_path: archived_path,
+            file_comment: comment,
         };
         self.push_job(job)
     }
@@ -212,13 +218,19 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///
     /// All directories in the tree should be added. This method does not asssociate any filesystem
     /// properties to the entry.
-    pub fn add_directory(&mut self, archived_path: String, attributes: Option<u16>) {
+    pub fn add_directory(
+        &mut self,
+        archived_path: String,
+        comment: Option<String>,
+        attributes: Option<u16>,
+    ) {
         let job = ZipJob {
             data_origin: ZipJobOrigin::Directory {
                 extra_fields: ExtraFields::default(),
                 external_attributes: attributes.unwrap_or(ZipFile::default_dir_attrs()),
             },
             archive_path: archived_path,
+            file_comment: comment,
         };
         let file = job.into_file().expect("No failing code path");
         self.push_file(file);
@@ -234,6 +246,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     pub fn add_directory_with_metadata(
         &mut self,
         archived_path: String,
+        comment: Option<String>,
         extra_fields: ExtraFields,
         attributes: Option<u16>,
     ) {
@@ -243,6 +256,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
                 external_attributes: attributes.unwrap_or(ZipFile::default_dir_attrs()),
             },
             archive_path: archived_path,
+            file_comment: comment,
         };
         let file = job.into_file().expect("No failing code path");
         self.push_file(file);
@@ -255,6 +269,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     pub fn add_directory_with_metadata_from_fs<P: AsRef<Path>>(
         &mut self,
         archived_path: String,
+        comment: Option<String>,
         fs_path: P,
     ) -> std::io::Result<()> {
         let metadata = std::fs::metadata(fs_path)?;
@@ -264,6 +279,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
                 external_attributes: ZipJob::attributes_from_fs(&metadata),
             },
             archive_path: archived_path,
+            file_comment: comment,
         };
         let file = job.into_file().expect("No failing code path");
         self.push_file(file);
