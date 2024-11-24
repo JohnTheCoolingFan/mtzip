@@ -18,9 +18,7 @@ const VERSION_MADE_BY: u16 = (3 << 8) + 62;
 /// Specification version 6.2
 const VERSION_MADE_BY: u16 = (11 << 8) + 62;
 
-#[cfg(any(target_os = "linux", unix))]
 pub(crate) const DEFAULT_UNIX_FILE_ATTRS: u16 = 0o100644;
-#[cfg(any(target_os = "linux", unix))]
 pub(crate) const DEFAULT_UNIX_DIR_ATTRS: u16 = 0o040755;
 
 #[cfg(target_os = "windows")]
