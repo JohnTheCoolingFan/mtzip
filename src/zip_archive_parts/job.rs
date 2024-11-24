@@ -7,11 +7,14 @@ use std::{
 };
 
 use cfg_if::cfg_if;
+use derivative::Derivative;
 use flate2::{read::DeflateEncoder, CrcReader};
 
 use super::{extra_field::ExtraFields, file::ZipFile};
 use crate::{level::CompressionLevel, zip_archive_parts::file::ZipFileHeader, CompressionType};
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub enum ZipJobOrigin<'d, 'p, 'r> {
     Filesystem {
         path: Cow<'p, Path>,
@@ -30,64 +33,13 @@ pub enum ZipJobOrigin<'d, 'p, 'r> {
         external_attributes: u16,
     },
     Reader {
+        #[derivative(Debug = "ignore")]
         reader: Box<dyn Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>,
         compression_level: CompressionLevel,
         compression_type: CompressionType,
         extra_fields: ExtraFields,
         external_attributes: u16,
     },
-}
-
-impl<'d, 'p, 'r> std::fmt::Debug for ZipJobOrigin<'d, 'p, 'r> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Filesystem {
-                path,
-                compression_level,
-                compression_type,
-            } => f
-                .debug_struct("Filesystem")
-                .field("path", path)
-                .field("compression_level", compression_level)
-                .field("compression_type", compression_type)
-                .finish(),
-            Self::RawData {
-                data,
-                compression_level,
-                compression_type,
-                extra_fields,
-                external_attributes,
-            } => f
-                .debug_struct("RawData")
-                .field("data", data)
-                .field("compression_level", compression_level)
-                .field("compression_type", compression_type)
-                .field("extra_fields", extra_fields)
-                .field("external_attributes", external_attributes)
-                .finish(),
-            Self::Directory {
-                extra_fields,
-                external_attributes,
-            } => f
-                .debug_struct("Directory")
-                .field("extra_fields", extra_fields)
-                .field("external_attributes", external_attributes)
-                .finish(),
-            Self::Reader {
-                reader: _,
-                compression_level,
-                compression_type,
-                extra_fields,
-                external_attributes,
-            } => f
-                .debug_struct("Reader")
-                .field("compression_level", compression_level)
-                .field("compression_type", compression_type)
-                .field("extra_fields", extra_fields)
-                .field("external_attributes", external_attributes)
-                .finish_non_exhaustive(),
-        }
-    }
 }
 
 #[derive(Debug)]
