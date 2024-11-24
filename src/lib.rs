@@ -34,6 +34,7 @@
 //! ```
 
 #![warn(missing_docs)]
+#![cfg_attr(feature = "wasi_fs", feature(wasi_ext))]
 
 use std::{
     borrow::Cow,

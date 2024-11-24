@@ -35,7 +35,7 @@ impl ExtraFields {
     ///
     /// The behavior is dependent on the target platform. Will return an empty set if the target os
     /// is not Windows or Linux and not of UNIX family.
-    pub fn new_from_fs(metadata: &Metadata) -> Self {
+    pub fn new_from_fs(#[allow(unused_variables)] metadata: &Metadata) -> Self {
         cfg_if! {
             if #[cfg(target_os = "windows")] {
                 Self::new_windows(metadata)
@@ -43,6 +43,8 @@ impl ExtraFields {
                 Self::new_linux(metadata)
             } else if #[cfg(all(unix, not(target_os = "linux")))] {
                 Self::new_unix(metadata)
+            } else if #[cfg(all(target_os = "wasi", feature = "wasi_fs"))] {
+                Self::new_wasi(metadata)
             } else {
                 Self::default()
             }
@@ -93,6 +95,23 @@ impl ExtraFields {
                 },
                 ExtraField::UnixAttrs { uid, gid },
             ],
+        }
+    }
+
+    #[cfg(all(target_os = "wasi", feature = "wasi_fs"))]
+    fn new_wasi(metadata: &Metadata) -> Self {
+        use std::os::wasi::fs::MetadataExt;
+
+        let mod_time = metadata.mtime().try_into().ok();
+        let ac_time = metadata.atime().try_into().ok();
+        let cr_time = metadata.ctime().try_into().ok();
+
+        Self {
+            values: vec![ExtraField::UnixExtendedTimestamp {
+                mod_time,
+                ac_time,
+                cr_time,
+            }],
         }
     }
 

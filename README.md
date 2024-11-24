@@ -37,3 +37,10 @@ The amount of threads is also determined by the amount of files that are going t
 ## Rayon
 
 This crate also supports [`rayon`](https://crates.io/crates/rayon) for thread management and parallelism, enabled with `rayon` feature.
+
+## Crate features
+
+- `rust_backend` - enables `flate2/rust_backend` feature, enabled by default
+- `zlib` - enables `flate2/zlib` feature
+- `rayon` - enables rayon support
+- `wasi_fs` - enabled use of WASI filesistem metadata extensions
