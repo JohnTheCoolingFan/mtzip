@@ -68,9 +68,9 @@ impl ZipJob<'_, '_, '_> {
                 Self::convert_attrs(metadata.permissions().mode())
             } else {
                 if metadata.is_dir() {
-                    DEFAULT_UNIX_DIR_ATTRS
+                    super::file::DEFAULT_UNIX_DIR_ATTRS
                 } else {
-                    DEFAULT_UNIX_FILE_ATTRS
+                    super::file::DEFAULT_UNIX_FILE_ATTRS
                 }
             }
         }
