@@ -52,7 +52,7 @@ use zip_archive_parts::{
     data::ZipData,
     extra_field::ExtraFields,
     file::ZipFile,
-    job::{ZipJob, ZipJobOrigin},
+    job::{ZipJob, ZipJobData, ZipJobOrigin},
 };
 
 pub mod level;
@@ -166,8 +166,8 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
         extra_fields: Option<ExtraFields>,
     ) {
         let job = ZipJob {
-            data_origin: ZipJobOrigin::RawData {
-                data: data.into(),
+            data_origin: ZipJobOrigin::Data {
+                data: ZipJobData::RawData(data.into()),
                 compression_level: compression_level.unwrap_or(CompressionLevel::best()),
                 compression_type: compression_type.unwrap_or(CompressionType::Deflate),
                 external_attributes: file_attributes.unwrap_or(ZipFile::default_file_attrs()),
@@ -201,8 +201,8 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
         extra_fields: Option<ExtraFields>,
     ) {
         let job = ZipJob {
-            data_origin: ZipJobOrigin::Reader {
-                reader: Box::new(reader),
+            data_origin: ZipJobOrigin::Data {
+                data: ZipJobData::Reader(Box::new(reader)),
                 compression_level: compression_level.unwrap_or(CompressionLevel::best()),
                 compression_type: compression_type.unwrap_or(CompressionType::Deflate),
                 external_attributes: file_attributes.unwrap_or(ZipFile::default_file_attrs()),

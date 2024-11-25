@@ -15,26 +15,28 @@ use crate::{level::CompressionLevel, zip_archive_parts::file::ZipFileHeader, Com
 
 #[derive(Derivative)]
 #[derivative(Debug)]
+pub enum ZipJobData<'d, 'r> {
+    RawData(Cow<'d, [u8]>),
+    Reader(
+        #[derivative(Debug = "ignore")]
+        Box<dyn Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>,
+    ),
+}
+
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub enum ZipJobOrigin<'d, 'p, 'r> {
     Filesystem {
         path: Cow<'p, Path>,
         compression_level: CompressionLevel,
         compression_type: CompressionType,
     },
-    RawData {
-        data: Cow<'d, [u8]>,
-        compression_level: CompressionLevel,
-        compression_type: CompressionType,
-        extra_fields: ExtraFields,
-        external_attributes: u16,
-    },
     Directory {
         extra_fields: ExtraFields,
         external_attributes: u16,
     },
-    Reader {
-        #[derivative(Debug = "ignore")]
-        reader: Box<dyn Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>,
+    Data {
+        data: ZipJobData<'d, 'r>,
         compression_level: CompressionLevel,
         compression_type: CompressionType,
         extra_fields: ExtraFields,
@@ -149,8 +151,8 @@ impl ZipJob<'_, '_, '_> {
                     self.file_comment,
                 )
             }
-            ZipJobOrigin::RawData {
-                data,
+            ZipJobOrigin::Data {
+                data: ZipJobData::RawData(data),
                 compression_level,
                 compression_type,
                 extra_fields,
@@ -170,8 +172,8 @@ impl ZipJob<'_, '_, '_> {
                     self.file_comment,
                 )
             }
-            ZipJobOrigin::Reader {
-                reader,
+            ZipJobOrigin::Data {
+                data: ZipJobData::Reader(reader),
                 compression_level,
                 compression_type,
                 extra_fields,
