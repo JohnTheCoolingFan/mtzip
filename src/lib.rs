@@ -243,6 +243,16 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// Add file from filesystem.
     ///
     /// Opens the file and reads data from it when [`compress`](Self::compress) is called.
+    ///
+    /// ```
+    /// # use mtzip::ZipArchive;
+    /// # use std::path::Path;
+    /// let mut zipper = ZipArchive::new();
+    /// let file_path: &Path = "input.txt".as_ref();
+    /// zipper
+    ///     .add_file_from_fs(file_path, "input.txt".to_owned())
+    ///     .done();
+    /// ```
     #[inline]
     pub fn add_file_from_fs(
         &mut self,
@@ -262,6 +272,16 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///
     /// The data can be either borrowed or owned by the [`ZipArchive`] struct to avoid lifetime
     /// hell.
+    ///
+    /// ```
+    /// # use mtzip::ZipArchive;
+    /// # use std::path::Path;
+    /// let mut zipper = ZipArchive::new();
+    /// let data: &[u8] = "Hello, world!".as_ref();
+    /// zipper
+    ///     .add_file_from_memory(data, "input.txt".to_owned())
+    ///     .done();
+    /// ```
     #[inline]
     pub fn add_file_from_memory(
         &mut self,
@@ -275,13 +295,15 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///
     /// This method takes any type implementing [`Read`] and allows it to have borrowed data (`'r`)
     ///
-    /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
-    ///
-    /// `compression_level` is ignored when [`CompressionType::Stored`] is used. Default value is
-    /// [`CompressionLevel::best`].
-    ///
-    /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
-    /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
+    /// ```
+    /// # use mtzip::ZipArchive;
+    /// # use std::path::Path;
+    /// let mut zipper = ZipArchive::new();
+    /// let data_input = std::io::stdin();
+    /// zipper
+    ///     .add_file_from_reader(data_input, "input.txt".to_owned())
+    ///     .done();
+    /// ```
     #[inline]
     pub fn add_file_from_reader<R: Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>(
         &mut self,
@@ -295,6 +317,13 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///
     /// All directories in the tree should be added. This method does not asssociate any filesystem
     /// properties to the entry.
+    ///
+    /// ```
+    /// # use mtzip::ZipArchive;
+    /// # use std::path::Path;
+    /// let mut zipper = ZipArchive::new();
+    /// zipper.add_directory("test_dir/".to_owned()).done();
+    /// ```
     #[inline]
     pub fn add_directory(&mut self, archived_path: String) -> ZipFileBuilder<'_, 'd, 'p, 'r> {
         ZipFileBuilder::new_dir(self, archived_path)
@@ -317,6 +346,9 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// [`compress`](Self::compress):
     ///
     /// ```
+    /// # use std::num::NonZeroUsize;
+    /// # use mtzip::ZipArchive;
+    /// # let mut zipper = ZipArchive::new();
     /// let threads = std::thread::available_parallelism()
     ///     .map(NonZeroUsize::get)
     ///     .unwrap_or(1);
@@ -346,6 +378,9 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// Example of getting amount of threads that this library uses in [`write`](Self::write):
     ///
     /// ```
+    /// # use std::num::NonZeroUsize;
+    /// # use mtzip::ZipArchive;
+    /// # let mut zipper = ZipArchive::new();
     /// let threads = std::thread::available_parallelism()
     ///     .map(NonZeroUsize::get)
     ///     .unwrap_or(1);
