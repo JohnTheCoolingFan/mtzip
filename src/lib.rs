@@ -7,23 +7,27 @@
 //! Example usage:
 //!
 //! ```ignore
+//! # use std::path::Path;
+//! # use std::fs::File;
 //! use mtzip::ZipArchive;
 //!
 //! // Creating the zipper that holds data and handles compression
 //! let mut zipper = ZipArchive::new();
 //!
 //! // Adding a file from filesystem
-//! zipper.add_file_from_fs("input/test_text_file.txt", "test_text_file.txt");
+//! zipper.add_file_from_fs(
+//!     Path::new("input/test_text_file.txt"),
+//!     "test_text_file.txt".to_owned(),
+//! );
 //!
-//! // Adding a file from a byte array
-//! zipper.add_file_from_memory(b"Hello, world!", "hello_world.txt");
+//! // Adding a file with data from a memory location
+//! zipper.add_file_from_memory(b"Hello, world!", "hello_world.txt".to_owned());
 //!
 //! // Adding a directory and a file to it
-//! zipper.add_directory("test_dir");
-//! // And adding a file to it
+//! zipper.add_directory("test_dir".to_owned());
 //! zipper.add_file_from_fs(
-//!     "input/file_that_goes_to_a_dir.txt",
-//!     "test_dir/file_that_goes_to_a_dir.txt",
+//!     Path::new("input/file_that_goes_to_a_dir.txt"),
+//!     "test_dir/file_that_goes_to_a_dir.txt".to_owned(),
 //! );
 //!
 //! // Writing to a file
@@ -248,9 +252,8 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// # use mtzip::ZipArchive;
     /// # use std::path::Path;
     /// let mut zipper = ZipArchive::new();
-    /// let file_path: &Path = "input.txt".as_ref();
     /// zipper
-    ///     .add_file_from_fs(file_path, "input.txt".to_owned())
+    ///     .add_file_from_fs(Path::new("input.txt"), "input.txt".to_owned())
     ///     .done();
     /// ```
     #[inline]
@@ -279,7 +282,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// let mut zipper = ZipArchive::new();
     /// let data: &[u8] = "Hello, world!".as_ref();
     /// zipper
-    ///     .add_file_from_memory(data, "input.txt".to_owned())
+    ///     .add_file_from_memory(data, "hello_world.txt".to_owned())
     ///     .done();
     /// ```
     #[inline]
@@ -301,7 +304,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// let mut zipper = ZipArchive::new();
     /// let data_input = std::io::stdin();
     /// zipper
-    ///     .add_file_from_reader(data_input, "input.txt".to_owned())
+    ///     .add_file_from_reader(data_input, "stdin_file.txt".to_owned())
     ///     .done();
     /// ```
     #[inline]
