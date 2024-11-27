@@ -15,6 +15,21 @@ pub struct ExtraFields {
     pub(crate) values: Vec<ExtraField>,
 }
 
+impl Extend<ExtraField> for ExtraFields {
+    fn extend<T: IntoIterator<Item = ExtraField>>(&mut self, iter: T) {
+        self.values.extend(iter)
+    }
+}
+
+impl IntoIterator for ExtraFields {
+    type Item = <Vec<ExtraField> as IntoIterator>::Item;
+    type IntoIter = <Vec<ExtraField> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.values.into_iter()
+    }
+}
+
 impl ExtraFields {
     /// Create a new set of [`ExtraField`]s. [`Self::new_from_fs`] should be preferred.
     ///

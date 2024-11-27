@@ -50,9 +50,9 @@ use level::CompressionLevel;
 use rayon::prelude::*;
 use zip_archive_parts::{
     data::ZipData,
-    extra_field::ExtraFields,
+    extra_field::{ExtraField, ExtraFields},
     file::ZipFile,
-    job::{ZipJob, ZipJobData, ZipJobOrigin},
+    job::{ZipJob, ZipJobOrigin},
 };
 
 pub mod level;
@@ -74,6 +74,134 @@ pub enum CompressionType {
     #[default]
     /// Deflate compression, the most common in ZIP files.
     Deflate = 8,
+}
+
+/// Builder used to optionally add additional attributes to a file or directory.
+/// The default compression type is [`CompressionType::Deflate`] and default compression level is
+/// [`CompressionLevel::best`]
+#[must_use]
+#[derive(Debug)]
+pub struct ZipFileBuilder<'a, 'd, 'p, 'r> {
+    archive_handle: &'a mut ZipArchive<'d, 'p, 'r>,
+    job: ZipJob<'d, 'p, 'r>,
+}
+
+impl<'a, 'd, 'p, 'r> ZipFileBuilder<'a, 'd, 'p, 'r> {
+    /// Call this when you're done configuring the file entry and it will be added to the job list,
+    /// or directly into the resulting dataset if it's a directory. Always needs to be called.
+    pub fn done(self) {
+        let Self {
+            archive_handle,
+            job,
+        } = self;
+        match &job.data_origin {
+            ZipJobOrigin::Directory => {
+                let file = job.into_file().expect("No failing code path");
+                archive_handle.push_file(file);
+            }
+            _ => archive_handle.push_job(job),
+        }
+    }
+
+    /// Read filesystem metadata from filesystem and add the properties to this file. It sets
+    /// external attributes (as with [`Self::external_attributes`]) and adds extra fields generated
+    /// with [`ExtraFields::new_from_fs`]
+    pub fn metadata_from_fs(self, fs_path: &Path) -> std::io::Result<Self> {
+        let metadata = std::fs::metadata(fs_path)?;
+        let external_attributes = ZipJob::attributes_from_fs(&metadata);
+        let extra_fields = ExtraFields::new_from_fs(&metadata);
+        Ok(self
+            .external_attributes(external_attributes)
+            .extra_fields(extra_fields))
+    }
+
+    /// Add a file comment.
+    pub fn file_comment(mut self, comment: String) -> Self {
+        self.job.file_comment = Some(comment);
+        self
+    }
+
+    /// Add additional [`ExtraField`].
+    pub fn extra_field(mut self, extra_field: ExtraField) -> Self {
+        self.job.extra_fields.values.push(extra_field);
+        self
+    }
+
+    /// Add additional [`ExtraField`]s.
+    pub fn extra_fields(mut self, extra_fields: impl IntoIterator<Item = ExtraField>) -> Self {
+        self.job.extra_fields.extend(extra_fields);
+        self
+    }
+
+    /// Set compression type. Ignored for directories, as they use no compression.
+    ///
+    /// Default is [`CompressionType::Deflate`].
+    pub fn compression_type(mut self, compression_type: CompressionType) -> Self {
+        self.job.compression_type = compression_type;
+        self
+    }
+
+    /// Set compression level. Ignored for directories, as they use no compression.
+    ///
+    /// Default is [`CompressionLevel::best`]
+    pub fn compression_level(mut self, compression_level: CompressionLevel) -> Self {
+        self.job.compression_level = compression_level;
+        self
+    }
+
+    /// Set external attributes. The format depends on a filesystem and is mostly a legacy
+    /// mechanism, usually a default value is used if this is not a filesystem source. When a file
+    /// is added from the filesystem, these attributes will be read and used and the ones set wit
+    /// hthis method are ignored.
+    pub fn external_attributes(mut self, external_attributes: u16) -> Self {
+        self.job.external_attributes = external_attributes;
+        self
+    }
+
+    /// Set external file attributes from a filesystem item. Use of this method is discouraged in
+    /// favor of [`Self::metadata_from_fs`], which also sets extra fields which contain modern
+    /// filesystem attributes instead of using old 16-bit system-dependent format.
+    pub fn external_attributes_from_fs(mut self, fs_path: &Path) -> std::io::Result<Self> {
+        let metadata = std::fs::metadata(fs_path)?;
+        self.job.external_attributes = ZipJob::attributes_from_fs(&metadata);
+        Ok(self)
+    }
+
+    #[inline]
+    fn new(
+        archive: &'a mut ZipArchive<'d, 'p, 'r>,
+        filename: String,
+        origin: ZipJobOrigin<'d, 'p, 'r>,
+    ) -> Self {
+        Self {
+            archive_handle: archive,
+            job: ZipJob {
+                data_origin: origin,
+                archive_path: filename,
+                extra_fields: ExtraFields::default(),
+                file_comment: None,
+                external_attributes: ZipFile::default_file_attrs(),
+                compression_type: CompressionType::Deflate,
+                compression_level: CompressionLevel::best(),
+            },
+        }
+    }
+
+    #[inline]
+    fn new_dir(archive: &'a mut ZipArchive<'d, 'p, 'r>, filename: String) -> Self {
+        Self {
+            archive_handle: archive,
+            job: ZipJob {
+                data_origin: ZipJobOrigin::Directory,
+                archive_path: filename,
+                extra_fields: ExtraFields::default(),
+                file_comment: None,
+                external_attributes: ZipFile::default_dir_attrs(),
+                compression_type: CompressionType::Deflate,
+                compression_level: CompressionLevel::best(),
+            },
+        }
+    }
 }
 
 /// Structure that holds the current state of ZIP archive creation.
@@ -115,68 +243,32 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// Add file from filesystem.
     ///
     /// Opens the file and reads data from it when [`compress`](Self::compress) is called.
-    ///
-    /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
-    ///
-    /// `compression_level` is ignored when [`CompressionType::Stored`] is used. Default value is
-    /// [`CompressionLevel::best`].
-    ///
-    /// This method does not allow setting [`ExtraFields`] manually and instead uses the filesystem
-    /// to obtain them.
+    #[inline]
     pub fn add_file_from_fs(
         &mut self,
         fs_path: impl Into<Cow<'p, Path>>,
         archived_path: String,
-        comment: Option<String>,
-        compression_level: Option<CompressionLevel>,
-        compression_type: Option<CompressionType>,
-    ) {
-        let job = ZipJob {
-            data_origin: ZipJobOrigin::Filesystem {
+    ) -> ZipFileBuilder<'_, 'd, 'p, 'r> {
+        ZipFileBuilder::new(
+            self,
+            archived_path,
+            ZipJobOrigin::Filesystem {
                 path: fs_path.into(),
-                compression_level: compression_level.unwrap_or(CompressionLevel::best()),
-                compression_type: compression_type.unwrap_or(CompressionType::Deflate),
             },
-            archive_path: archived_path,
-            file_comment: comment,
-        };
-        self.push_job(job);
+        )
     }
 
     /// Add file with data from memory.
     ///
     /// The data can be either borrowed or owned by the [`ZipArchive`] struct to avoid lifetime
     /// hell.
-    ///
-    /// Default value for `compression_type` is [`Deflate`](CompressionType::Deflate).
-    ///
-    /// `compression_level` is ignored when [`CompressionType::Stored`] is used. Default value is
-    /// [`CompressionLevel::best`].
-    ///
-    /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
-    /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
+    #[inline]
     pub fn add_file_from_memory(
         &mut self,
         data: impl Into<Cow<'d, [u8]>>,
         archived_path: String,
-        comment: Option<String>,
-        compression_level: Option<CompressionLevel>,
-        compression_type: Option<CompressionType>,
-        file_attributes: Option<u16>,
-        extra_fields: Option<ExtraFields>,
-    ) {
-        let job = ZipJob {
-            data_origin: ZipJobOrigin::Data {
-                data: ZipJobData::RawData(data.into()),
-                compression_level: compression_level.unwrap_or(CompressionLevel::best()),
-                compression_type: compression_type.unwrap_or(CompressionType::Deflate),
-                external_attributes: file_attributes.unwrap_or(ZipFile::default_file_attrs()),
-                extra_fields: extra_fields.unwrap_or_default(),
-            },
-            archive_path: archived_path,
-            file_comment: comment,
-        };
-        self.push_job(job);
+    ) -> ZipFileBuilder<'_, 'd, 'p, 'r> {
+        ZipFileBuilder::new(self, archived_path, ZipJobOrigin::RawData(data.into()))
     }
 
     /// Add a file with data from a reader.
@@ -190,100 +282,22 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///
     /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
     /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
+    #[inline]
     pub fn add_file_from_reader<R: Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>(
         &mut self,
         reader: R,
         archived_path: String,
-        comment: Option<String>,
-        compression_level: Option<CompressionLevel>,
-        compression_type: Option<CompressionType>,
-        file_attributes: Option<u16>,
-        extra_fields: Option<ExtraFields>,
-    ) {
-        let job = ZipJob {
-            data_origin: ZipJobOrigin::Data {
-                data: ZipJobData::Reader(Box::new(reader)),
-                compression_level: compression_level.unwrap_or(CompressionLevel::best()),
-                compression_type: compression_type.unwrap_or(CompressionType::Deflate),
-                external_attributes: file_attributes.unwrap_or(ZipFile::default_file_attrs()),
-                extra_fields: extra_fields.unwrap_or_default(),
-            },
-            archive_path: archived_path,
-            file_comment: comment,
-        };
-        self.push_job(job)
+    ) -> ZipFileBuilder<'_, 'd, 'p, 'r> {
+        ZipFileBuilder::new(self, archived_path, ZipJobOrigin::Reader(Box::new(reader)))
     }
 
     /// Add a directory entry.
     ///
     /// All directories in the tree should be added. This method does not asssociate any filesystem
     /// properties to the entry.
-    pub fn add_directory(
-        &mut self,
-        archived_path: String,
-        comment: Option<String>,
-        attributes: Option<u16>,
-    ) {
-        let job = ZipJob {
-            data_origin: ZipJobOrigin::Directory {
-                extra_fields: ExtraFields::default(),
-                external_attributes: attributes.unwrap_or(ZipFile::default_dir_attrs()),
-            },
-            archive_path: archived_path,
-            file_comment: comment,
-        };
-        let file = job.into_file().expect("No failing code path");
-        self.push_file(file);
-    }
-
-    /// Add a directory entry.
-    ///
-    /// All directories in the tree should be added. Use this method if you want to manually set
-    /// filesystem properties of the directory.
-    ///
-    /// `extra_fields` parameter allows setting extra attributes. Currently it supports NTFS and
-    /// UNIX filesystem attributes, see more in [`ExtraFields`] description.
-    pub fn add_directory_with_metadata(
-        &mut self,
-        archived_path: String,
-        comment: Option<String>,
-        extra_fields: ExtraFields,
-        attributes: Option<u16>,
-    ) {
-        let job = ZipJob {
-            data_origin: ZipJobOrigin::Directory {
-                extra_fields,
-                external_attributes: attributes.unwrap_or(ZipFile::default_dir_attrs()),
-            },
-            archive_path: archived_path,
-            file_comment: comment,
-        };
-        let file = job.into_file().expect("No failing code path");
-        self.push_file(file);
-    }
-
-    /// Add a directory entry.
-    ///
-    /// All directories in the tree should be added. This method will take the metadata from
-    /// filesystem and add it to the entry in the zip file.
-    pub fn add_directory_with_metadata_from_fs<P: AsRef<Path>>(
-        &mut self,
-        archived_path: String,
-        comment: Option<String>,
-        fs_path: P,
-    ) -> std::io::Result<()> {
-        let metadata = std::fs::metadata(fs_path)?;
-        let job = ZipJob {
-            data_origin: ZipJobOrigin::Directory {
-                extra_fields: ExtraFields::new_from_fs(&metadata),
-                external_attributes: ZipJob::attributes_from_fs(&metadata),
-            },
-            archive_path: archived_path,
-            file_comment: comment,
-        };
-        let file = job.into_file().expect("No failing code path");
-        self.push_file(file);
-        Ok(())
+    #[inline]
+    pub fn add_directory(&mut self, archived_path: String) -> ZipFileBuilder<'_, 'd, 'p, 'r> {
+        ZipFileBuilder::new_dir(self, archived_path)
     }
 
     /// Compress contents. Will be done automatically on [`write`](Self::write) call if files were

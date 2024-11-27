@@ -15,7 +15,11 @@ use crate::{level::CompressionLevel, zip_archive_parts::file::ZipFileHeader, Com
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub enum ZipJobData<'d, 'r> {
+pub enum ZipJobOrigin<'d, 'p, 'r> {
+    Directory,
+    Filesystem {
+        path: Cow<'p, Path>,
+    },
     RawData(Cow<'d, [u8]>),
     Reader(
         #[derivative(Debug = "ignore")]
@@ -23,32 +27,24 @@ pub enum ZipJobData<'d, 'r> {
     ),
 }
 
-#[derive(Derivative)]
-#[derivative(Debug)]
-pub enum ZipJobOrigin<'d, 'p, 'r> {
-    Filesystem {
-        path: Cow<'p, Path>,
-        compression_level: CompressionLevel,
-        compression_type: CompressionType,
-    },
-    Directory {
-        extra_fields: ExtraFields,
-        external_attributes: u16,
-    },
-    Data {
-        data: ZipJobData<'d, 'r>,
-        compression_level: CompressionLevel,
-        compression_type: CompressionType,
-        extra_fields: ExtraFields,
-        external_attributes: u16,
-    },
+#[derive(Debug)]
+struct FileDigest {
+    data: Vec<u8>,
+    uncompressed_size: u32,
+    crc: u32,
 }
 
 #[derive(Debug)]
 pub struct ZipJob<'a, 'p, 'r> {
     pub data_origin: ZipJobOrigin<'a, 'p, 'r>,
+    pub extra_fields: ExtraFields,
     pub archive_path: String,
     pub file_comment: Option<String>,
+    pub external_attributes: u16,
+    /// Ignored when [`data_origin`](Self::data_origin) is a [`ZipJobOrigin::Directory`]
+    pub compression_level: CompressionLevel,
+    /// Ignored when [`data_origin`](Self::data_origin) is a [`ZipJobOrigin::Directory`]
+    pub compression_type: CompressionType,
 }
 
 impl ZipJob<'_, '_, '_> {
@@ -79,18 +75,14 @@ impl ZipJob<'_, '_, '_> {
         }
     }
 
-    fn gen_file<R: Read>(
+    fn compress_file<R: Read>(
         source: R,
-        uncompressed_size: Option<u32>,
-        archive_path: String,
-        attributes: u16,
-        compression_level: CompressionLevel,
+        uncompressed_size_approx: Option<u32>,
         compression_type: CompressionType,
-        extra_fields: ExtraFields,
-        file_comment: Option<String>,
-    ) -> std::io::Result<ZipFile> {
+        compression_level: CompressionLevel,
+    ) -> std::io::Result<FileDigest> {
         let mut crc_reader = CrcReader::new(source);
-        let mut data = Vec::with_capacity(uncompressed_size.unwrap_or(0) as usize);
+        let mut data = Vec::with_capacity(uncompressed_size_approx.unwrap_or(0) as usize);
         let uncompressed_size = match compression_type {
             CompressionType::Deflate => {
                 let mut encoder = DeflateEncoder::new(&mut crc_reader, compression_level.into());
@@ -103,91 +95,106 @@ impl ZipJob<'_, '_, '_> {
         let uncompressed_size = uncompressed_size as u32;
         data.shrink_to_fit();
         let crc = crc_reader.crc().sum();
-        Ok(ZipFile {
-            header: ZipFileHeader {
-                compression_type: CompressionType::Deflate,
-                crc,
-                uncompressed_size,
-                filename: archive_path,
-                external_file_attributes: (attributes as u32) << 16,
-                extra_fields,
-                file_comment,
-            },
+        Ok(FileDigest {
             data,
+            uncompressed_size,
+            crc,
         })
     }
 
     pub fn into_file(self) -> std::io::Result<ZipFile> {
         match self.data_origin {
-            ZipJobOrigin::Directory {
-                extra_fields,
-                external_attributes,
-            } => Ok(ZipFile::directory(
+            ZipJobOrigin::Directory => Ok(ZipFile::directory(
                 self.archive_path,
-                extra_fields,
-                external_attributes,
+                self.extra_fields,
+                self.external_attributes,
                 self.file_comment,
             )),
-            ZipJobOrigin::Filesystem {
-                path,
-                compression_level,
-                compression_type,
-            } => {
+            ZipJobOrigin::Filesystem { path } => {
                 let file = File::open(path).unwrap();
                 let file_metadata = file.metadata().unwrap();
-                let uncompressed_size = file_metadata.len();
-                debug_assert!(uncompressed_size <= u32::MAX.into());
-                let uncompressed_size = uncompressed_size as u32;
+                let uncompressed_size_approx = file_metadata.len();
+                debug_assert!(uncompressed_size_approx <= u32::MAX.into());
+                let uncompressed_size_approx = uncompressed_size_approx as u32;
                 let external_file_attributes = Self::attributes_from_fs(&file_metadata);
-                let extra_fields = ExtraFields::new_from_fs(&file_metadata);
-                Self::gen_file(
+                let mut extra_fields = ExtraFields::new_from_fs(&file_metadata);
+                extra_fields.extend(self.extra_fields);
+
+                let FileDigest {
+                    data,
+                    uncompressed_size,
+                    crc,
+                } = Self::compress_file(
                     file,
-                    Some(uncompressed_size),
-                    self.archive_path,
-                    external_file_attributes,
-                    compression_level,
-                    compression_type,
-                    extra_fields,
-                    self.file_comment,
-                )
+                    Some(uncompressed_size_approx),
+                    self.compression_type,
+                    self.compression_level,
+                )?;
+                Ok(ZipFile {
+                    header: ZipFileHeader {
+                        compression_type: CompressionType::Deflate,
+                        crc,
+                        uncompressed_size,
+                        filename: self.archive_path,
+                        external_file_attributes: (external_file_attributes as u32) << 16,
+                        extra_fields,
+                        file_comment: self.file_comment,
+                    },
+                    data,
+                })
             }
-            ZipJobOrigin::Data {
-                data: ZipJobData::RawData(data),
-                compression_level,
-                compression_type,
-                extra_fields,
-                external_attributes,
-            } => {
-                let uncompressed_size = data.len();
-                debug_assert!(uncompressed_size <= u32::MAX as usize);
-                let uncompressed_size = uncompressed_size as u32;
-                Self::gen_file(
+            ZipJobOrigin::RawData(data) => {
+                let uncompressed_size_approx = data.len();
+                debug_assert!(uncompressed_size_approx <= u32::MAX as usize);
+                let uncompressed_size_approx = uncompressed_size_approx as u32;
+
+                let FileDigest {
+                    data,
+                    uncompressed_size,
+                    crc,
+                } = Self::compress_file(
                     data.as_ref(),
-                    Some(uncompressed_size),
-                    self.archive_path,
-                    external_attributes,
-                    compression_level,
-                    compression_type,
-                    extra_fields,
-                    self.file_comment,
-                )
+                    Some(uncompressed_size_approx),
+                    self.compression_type,
+                    self.compression_level,
+                )?;
+                Ok(ZipFile {
+                    header: ZipFileHeader {
+                        compression_type: CompressionType::Deflate,
+                        crc,
+                        uncompressed_size,
+                        filename: self.archive_path,
+                        external_file_attributes: (self.external_attributes as u32) << 16,
+                        extra_fields: self.extra_fields,
+                        file_comment: self.file_comment,
+                    },
+                    data,
+                })
             }
-            ZipJobOrigin::Data {
-                data: ZipJobData::Reader(reader),
-                compression_level,
-                compression_type,
-                extra_fields,
-                external_attributes,
-            } => Self::gen_file(
-                reader,
-                None,
-                self.archive_path,
-                external_attributes,
-                compression_level,
-                compression_type,
-                extra_fields,
-                self.file_comment,
-            ),
+            ZipJobOrigin::Reader(reader) => {
+                let FileDigest {
+                    data,
+                    uncompressed_size,
+                    crc,
+                } = Self::compress_file(
+                    reader,
+                    None,
+                    self.compression_type,
+                    self.compression_level,
+                )?;
+                Ok(ZipFile {
+                    header: ZipFileHeader {
+                        compression_type: CompressionType::Deflate,
+                        crc,
+                        uncompressed_size,
+                        filename: self.archive_path,
+                        external_file_attributes: (self.external_attributes as u32) << 16,
+                        extra_fields: self.extra_fields,
+                        file_comment: self.file_comment,
+                    },
+                    data,
+                })
+            }
         }
     }
 }
