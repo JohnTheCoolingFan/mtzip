@@ -15,15 +15,20 @@ use mtzip::ZipArchive;
 let mut zipper = ZipArchive::new();
 
 // Adding a file from filesystem
-zipper.add_file_from_fs("input/test_text_file.txt", "test_text_file.txt");
+zipper.add_file_from_fs(
+    Path::new("input/test_text_file.txt"),
+    "test_text_file.txt".to_owned(),
+);
 
-// Adding a file from a byte array
-zipper.add_file_from_memory(b"Hello, world!", "hello_world.txt");
+// Adding a file with data from a memory location
+zipper.add_file_from_memory(b"Hello, world!", "hello_world.txt".to_owned());
 
 // Adding a directory and a file to it
-zipper.add_directory("test_dir");
-// And adding a file to it
-zipper.add_file_from_fs("input/file_that_goes_to_a_dir.txt", "test_dir/file_that_goes_to_a_dir.txt");
+zipper.add_directory("test_dir".to_owned());
+zipper.add_file_from_fs(
+    Path::new("input/file_that_goes_to_a_dir.txt"),
+    "test_dir/file_that_goes_to_a_dir.txt".to_owned(),
+);
 
 // Writing to a file
 // First, open the file
