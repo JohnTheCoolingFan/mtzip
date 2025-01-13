@@ -64,7 +64,7 @@ impl ZipJob<'_, '_, '_> {
                 use std::os::linux::fs::MetadataExt;
                 Self::convert_attrs(metadata.st_mode())
             } else if #[cfg(all(unix, not(target_os = "linux")))] {
-                use std::os::unix::fs::MetadataExt;
+                use std::os::unix::fs::PermissionsExt;
                 Self::convert_attrs(metadata.permissions().mode())
             } else {
                 if metadata.is_dir() {
