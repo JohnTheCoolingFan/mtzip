@@ -1,17 +1,19 @@
 use std::{
     borrow::Cow,
-    fs::{File, Metadata},
+    fs::File,
     io::Read,
     panic::{RefUnwindSafe, UnwindSafe},
     path::Path,
 };
 
-use cfg_if::cfg_if;
 use derivative::Derivative;
 use flate2::{read::DeflateEncoder, CrcReader};
 
 use super::{extra_field::ExtraFields, file::ZipFile};
-use crate::{level::CompressionLevel, zip_archive_parts::file::ZipFileHeader, CompressionType};
+use crate::{
+    level::CompressionLevel, platform::attributes_from_fs, zip_archive_parts::file::ZipFileHeader,
+    CompressionType,
+};
 
 #[derive(Derivative)]
 #[derivative(Debug)]
@@ -48,34 +50,6 @@ pub struct ZipJob<'a, 'p, 'r> {
 }
 
 impl ZipJob<'_, '_, '_> {
-    #[inline]
-    #[allow(dead_code)]
-    const fn convert_attrs(attrs: u32) -> u16 {
-        attrs as u16
-    }
-
-    #[inline]
-    pub(crate) fn attributes_from_fs(metadata: &Metadata) -> u16 {
-        cfg_if! {
-            if #[cfg(target_os = "windows")] {
-                use std::os::windows::fs::MetadataExt;
-                Self::convert_attrs(metadata.file_attributes())
-            } else if #[cfg(target_os = "linux")] {
-                use std::os::linux::fs::MetadataExt;
-                Self::convert_attrs(metadata.st_mode())
-            } else if #[cfg(all(unix, not(target_os = "linux")))] {
-                use std::os::unix::fs::PermissionsExt;
-                Self::convert_attrs(metadata.permissions().mode())
-            } else {
-                if metadata.is_dir() {
-                    super::file::DEFAULT_UNIX_DIR_ATTRS
-                } else {
-                    super::file::DEFAULT_UNIX_FILE_ATTRS
-                }
-            }
-        }
-    }
-
     fn compress_file<R: Read>(
         source: R,
         uncompressed_size_approx: Option<u32>,
@@ -117,7 +91,7 @@ impl ZipJob<'_, '_, '_> {
                 let uncompressed_size_approx = file_metadata.len();
                 debug_assert!(uncompressed_size_approx <= u32::MAX.into());
                 let uncompressed_size_approx = uncompressed_size_approx as u32;
-                let external_file_attributes = Self::attributes_from_fs(&file_metadata);
+                let external_file_attributes = attributes_from_fs(&file_metadata);
                 let mut extra_fields = ExtraFields::new_from_fs(&file_metadata);
                 extra_fields.extend(self.extra_fields);
 

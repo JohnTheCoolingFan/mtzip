@@ -1,32 +1,12 @@
 use std::io::{Seek, Write};
 
-use cfg_if::cfg_if;
-
 use super::extra_field::ExtraFields;
-use crate::CompressionType;
+use crate::{platform::VERSION_MADE_BY, CompressionType};
 
 const LOCAL_FILE_HEADER_SIGNATURE: u32 = 0x04034B50;
 const CENTRAL_FILE_HEADER_SIGNATURE: u32 = 0x02014B50;
 
 const VERSION_NEEDED_TO_EXTRACT: u16 = 20;
-#[cfg(not(target_os = "windows"))]
-/// OS - Unix assumed, id 3
-/// Specification version 6.2
-const VERSION_MADE_BY: u16 = (3 << 8) + 62;
-#[cfg(target_os = "windows")]
-/// OS - Windows, id 11 per Info-Zip spec
-/// Specification version 6.2
-const VERSION_MADE_BY: u16 = (11 << 8) + 62;
-
-#[allow(dead_code)]
-pub(crate) const DEFAULT_UNIX_FILE_ATTRS: u16 = 0o100644;
-#[allow(dead_code)]
-pub(crate) const DEFAULT_UNIX_DIR_ATTRS: u16 = 0o040755;
-
-#[cfg(target_os = "windows")]
-pub(crate) const DEFAULT_WINDOWS_FILE_ATTRS: u16 = 128;
-#[cfg(target_os = "windows")]
-pub(crate) const DEFAULT_WINDOWS_DIR_ATTRS: u16 = 16;
 
 /// Set bit 11 to indicate that the file names are in UTF-8, because all strings in rust are valid
 /// UTF-8
@@ -57,30 +37,6 @@ pub struct ZipFileNoData {
 }
 
 impl ZipFile {
-    pub(crate) const fn default_file_attrs() -> u16 {
-        cfg_if! {
-            if #[cfg(target_os = "windows")] {
-                DEFAULT_WINDOWS_FILE_ATTRS
-            } else if #[cfg(any(target_os = "linux", unix))] {
-                DEFAULT_UNIX_FILE_ATTRS
-            } else {
-                0
-            }
-        }
-    }
-
-    pub(crate) const fn default_dir_attrs() -> u16 {
-        cfg_if! {
-            if #[cfg(target_os = "windows")] {
-                DEFAULT_WINDOWS_DIR_ATTRS
-            } else if #[cfg(any(target_os = "linux", unix))] {
-                DEFAULT_UNIX_DIR_ATTRS
-            } else {
-                0
-            }
-        }
-    }
-
     pub fn write_local_file_header_with_data_consuming<W: Write + Seek>(
         self,
         buf: &mut W,

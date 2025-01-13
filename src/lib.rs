@@ -60,6 +60,7 @@ use zip_archive_parts::{
 };
 
 pub mod level;
+mod platform;
 mod zip_archive_parts;
 
 pub use zip_archive_parts::extra_field;
@@ -112,7 +113,7 @@ impl<'a, 'd, 'p, 'r> ZipFileBuilder<'a, 'd, 'p, 'r> {
     /// with [`ExtraFields::new_from_fs`]
     pub fn metadata_from_fs(self, fs_path: &Path) -> std::io::Result<Self> {
         let metadata = std::fs::metadata(fs_path)?;
-        let external_attributes = ZipJob::attributes_from_fs(&metadata);
+        let external_attributes = platform::attributes_from_fs(&metadata);
         let extra_fields = ExtraFields::new_from_fs(&metadata);
         Ok(self
             .external_attributes(external_attributes)
@@ -167,7 +168,7 @@ impl<'a, 'd, 'p, 'r> ZipFileBuilder<'a, 'd, 'p, 'r> {
     /// filesystem attributes instead of using old 16-bit system-dependent format.
     pub fn external_attributes_from_fs(mut self, fs_path: &Path) -> std::io::Result<Self> {
         let metadata = std::fs::metadata(fs_path)?;
-        self.job.external_attributes = ZipJob::attributes_from_fs(&metadata);
+        self.job.external_attributes = platform::attributes_from_fs(&metadata);
         Ok(self)
     }
 
@@ -184,7 +185,7 @@ impl<'a, 'd, 'p, 'r> ZipFileBuilder<'a, 'd, 'p, 'r> {
                 archive_path: filename,
                 extra_fields: ExtraFields::default(),
                 file_comment: None,
-                external_attributes: ZipFile::default_file_attrs(),
+                external_attributes: platform::default_file_attrs(),
                 compression_type: CompressionType::Deflate,
                 compression_level: CompressionLevel::best(),
             },
@@ -200,7 +201,7 @@ impl<'a, 'd, 'p, 'r> ZipFileBuilder<'a, 'd, 'p, 'r> {
                 archive_path: filename,
                 extra_fields: ExtraFields::default(),
                 file_comment: None,
-                external_attributes: ZipFile::default_dir_attrs(),
+                external_attributes: platform::default_dir_attrs(),
                 compression_type: CompressionType::Deflate,
                 compression_level: CompressionLevel::best(),
             },
