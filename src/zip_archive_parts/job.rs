@@ -51,7 +51,7 @@ impl ZipJob<'_, '_, '_> {
     #[inline]
     #[allow(dead_code)]
     const fn convert_attrs(attrs: u32) -> u16 {
-        (attrs & 0xFFFF) as u16
+        attrs as u16
     }
 
     #[inline]
