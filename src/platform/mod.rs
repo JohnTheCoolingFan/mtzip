@@ -51,6 +51,8 @@ pub(crate) fn attributes_from_fs(metadata: &Metadata) -> u16 {
             use std::os::darwin::fs::MetadataExt;
             convert_attrs(metadata.st_mode())
         } else if #[cfg(all(unix, not(target_os = "linux"), not(target_os = "macos")))] {
+            // This is the fallback branch, for other unix systems that are not one of those that
+            // have special handling from `std::os::*::fs` module
             use std::os::unix::fs::PermissionsExt;
             convert_attrs(metadata.permissions().mode())
         } else {
