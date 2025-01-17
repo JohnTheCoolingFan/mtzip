@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-use derivative::Derivative;
+use derive_more::Debug;
 use flate2::{read::DeflateEncoder, CrcReader};
 
 use super::{extra_field::ExtraFields, file::ZipFile};
@@ -15,18 +15,12 @@ use crate::{
     CompressionType,
 };
 
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 pub enum ZipJobOrigin<'d, 'p, 'r> {
     Directory,
-    Filesystem {
-        path: Cow<'p, Path>,
-    },
+    Filesystem { path: Cow<'p, Path> },
     RawData(Cow<'d, [u8]>),
-    Reader(
-        #[derivative(Debug = "ignore")]
-        Box<dyn Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>,
-    ),
+    Reader(#[debug(ignore)] Box<dyn Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>),
 }
 
 #[derive(Debug)]
