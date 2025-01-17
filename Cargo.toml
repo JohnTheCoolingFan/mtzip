@@ -1,6 +1,6 @@
 [package]
 name = "mtzip"
-version = "4.0.0"
+version = "4.0.1"
 edition = "2021"
 description = "A library for making zip archives with multithreaded compression"
 license = "MIT"
@@ -8,8 +8,6 @@ repository = "https://github.com/JohnTheCoolingFan/mtzip"
 categories = ["compression", "concurrency"]
 documentation = "https://docs.rs/mtzip"
 authors = ["Jonh The Cooling Fan <ivan8215145640@gmail.com>"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [package.metadata.docs.rs]
 features = ["rayon"]
