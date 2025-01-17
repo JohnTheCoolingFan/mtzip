@@ -39,6 +39,13 @@ zipper.write(&mut file); // Amount of threads is chosen automatically
 
 The amount of threads is also determined by the amount of files that are going to be compressed. Because Deflate compression cannot be multithreaded, the multithreading is achieved by having the files compressed individually. This means that if you have 12 threads available but only 6 files being added to the archive, you will only use 6 threads.
 
+## Async
+
+As each compression job runs in its own thread, there is no need to use async for concurrency between those. You can put the call to the `write` function into a separate blocking thread to do synchronous write I/O. Here is a list of helpers for using asynchronous I/O types as synchronous:
+
+- `tokio`: [`SyncIoBridge` from `tokio-util`](https://docs.rs/tokio-util/latest/tokio_util/io/struct.SyncIoBridge.html)
+- `futures`: [`Async{Read,Write}::compat_write`](https://docs.rs/futures/latest/futures/io/trait.AsyncWriteExt.html#method.compat_write). The `Compat` struct implements synchronous std I/O operations.
+
 ## Rayon
 
 This crate also supports [`rayon`](https://crates.io/crates/rayon) for thread management and parallelism, enabled with `rayon` feature.
