@@ -6,21 +6,31 @@ use std::{
     path::Path,
 };
 
-use derive_more::Debug;
-use flate2::{read::DeflateEncoder, CrcReader};
+use flate2::{CrcReader, read::DeflateEncoder};
 
 use super::{extra_field::ExtraFields, file::ZipFile};
 use crate::{
-    level::CompressionLevel, platform::attributes_from_fs, zip_archive_parts::file::ZipFileHeader,
-    CompressionType,
+    CompressionType, level::CompressionLevel, platform::attributes_from_fs,
+    zip_archive_parts::file::ZipFileHeader,
 };
 
-#[derive(Debug)]
 pub enum ZipJobOrigin<'d, 'p, 'r> {
     Directory,
     Filesystem { path: Cow<'p, Path> },
     RawData(Cow<'d, [u8]>),
-    Reader(#[debug(ignore)] Box<dyn Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>),
+    Reader(Box<dyn Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>),
+}
+
+impl core::fmt::Debug for ZipJobOrigin<'_, '_, '_> {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Directory => f.write_str("Directory"),
+            Self::Filesystem { path } => f.debug_struct("Filesystem").field("path", &path).finish(),
+            Self::RawData(raw_data) => f.debug_tuple("RawData").field(&raw_data).finish(),
+            Self::Reader(_reader) => f.debug_tuple("Reader").finish_non_exhaustive(),
+        }
+    }
 }
 
 #[derive(Debug)]
