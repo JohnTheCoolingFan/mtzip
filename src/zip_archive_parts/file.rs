@@ -1,7 +1,7 @@
 use std::io::{Seek, Write};
 
 use super::extra_field::ExtraFields;
-use crate::{platform::VERSION_MADE_BY, CompressionType};
+use crate::{CompressionType, platform::VERSION_MADE_BY};
 
 const LOCAL_FILE_HEADER_SIGNATURE: u32 = 0x04034B50;
 const CENTRAL_FILE_HEADER_SIGNATURE: u32 = 0x02014B50;

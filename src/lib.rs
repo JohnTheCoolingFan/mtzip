@@ -46,7 +46,7 @@ use std::{
     num::NonZeroUsize,
     panic::{RefUnwindSafe, UnwindSafe},
     path::Path,
-    sync::{mpsc, Mutex},
+    sync::{Mutex, mpsc},
 };
 
 use level::CompressionLevel;
@@ -91,7 +91,10 @@ pub struct ZipFileBuilder<'a, 'b> {
     job: ZipJob<'a>,
 }
 
-impl<'a, 'b> ZipFileBuilder<'a, 'b> where 'a: 'b{
+impl<'a, 'b> ZipFileBuilder<'a, 'b>
+where
+    'a: 'b,
+{
     /// Call this when you're done configuring the file entry and it will be added to the job list,
     /// or directly into the resulting dataset if it's a directory. Always needs to be called.
     pub fn done(self) {
@@ -173,11 +176,7 @@ impl<'a, 'b> ZipFileBuilder<'a, 'b> where 'a: 'b{
     }
 
     #[inline]
-    fn new(
-        archive: &'b mut ZipArchive<'b>,
-        filename: String,
-        origin: ZipJobOrigin<'a>,
-    ) -> Self {
+    fn new(archive: &'b mut ZipArchive<'b>, filename: String, origin: ZipJobOrigin<'a>) -> Self {
         Self {
             archive_handle: archive,
             job: ZipJob {
@@ -230,7 +229,7 @@ pub struct ZipArchive<'a> {
     data: ZipData,
 }
 
-impl<'b> ZipArchive<'b>  {
+impl<'b> ZipArchive<'b> {
     fn push_job(&mut self, job: ZipJob<'b>) {
         self.jobs_queue.push(job);
     }
@@ -262,7 +261,10 @@ impl<'b> ZipArchive<'b>  {
         &'b mut self,
         fs_path: impl Into<Cow<'a, Path>>,
         archived_path: String,
-    ) -> ZipFileBuilder<'a, 'b> where 'a: 'b {
+    ) -> ZipFileBuilder<'a, 'b>
+    where
+        'a: 'b,
+    {
         ZipFileBuilder::new(
             self,
             archived_path,
@@ -291,7 +293,10 @@ impl<'b> ZipArchive<'b>  {
         &'b mut self,
         data: impl Into<Cow<'a, [u8]>>,
         archived_path: String,
-    ) -> ZipFileBuilder<'a, 'b> where 'a: 'b {
+    ) -> ZipFileBuilder<'a, 'b>
+    where
+        'a: 'b,
+    {
         ZipFileBuilder::new(self, archived_path, ZipJobOrigin::RawData(data.into()))
     }
 
@@ -313,7 +318,10 @@ impl<'b> ZipArchive<'b>  {
         &'b mut self,
         reader: R,
         archived_path: String,
-    ) -> ZipFileBuilder<'a, 'b> where 'a: 'b {
+    ) -> ZipFileBuilder<'a, 'b>
+    where
+        'a: 'b,
+    {
         ZipFileBuilder::new(self, archived_path, ZipJobOrigin::Reader(Box::new(reader)))
     }
 
@@ -329,7 +337,10 @@ impl<'b> ZipArchive<'b>  {
     /// zipper.add_directory("test_dir/".to_owned()).done();
     /// ```
     #[inline]
-    pub fn add_directory<'a>(&'b mut self, archived_path: String) -> ZipFileBuilder<'a, 'b> where 'a: 'b {
+    pub fn add_directory<'a>(&'b mut self, archived_path: String) -> ZipFileBuilder<'a, 'b>
+    where
+        'a: 'b,
+    {
         ZipFileBuilder::new_dir(self, archived_path)
     }
 
@@ -418,12 +429,14 @@ impl<'b> ZipArchive<'b>  {
                 let (tx, rx) = mpsc::channel();
                 for _ in 0..threads {
                     let thread_tx = tx.clone();
-                    s.spawn(move || loop {
-                        let next_job = jobs_drain_ref.lock().unwrap().next_back();
-                        if let Some(job) = next_job {
-                            thread_tx.send(job.into_file().unwrap()).unwrap();
-                        } else {
-                            break;
+                    s.spawn(move || {
+                        loop {
+                            let next_job = jobs_drain_ref.lock().unwrap().next_back();
+                            if let Some(job) = next_job {
+                                thread_tx.send(job.into_file().unwrap()).unwrap();
+                            } else {
+                                break;
+                            }
                         }
                     });
                 }

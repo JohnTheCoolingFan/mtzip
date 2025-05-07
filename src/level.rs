@@ -18,11 +18,7 @@ impl CompressionLevel {
     /// The integer value must be less than or equal to 9, otherwise `None` is returned
     #[inline]
     pub const fn new(level: u8) -> Option<Self> {
-        if level <= 9 {
-            Some(Self(level))
-        } else {
-            None
-        }
+        if level <= 9 { Some(Self(level)) } else { None }
     }
 
     /// Construct a new value of a compression level setting without checking the value.
