@@ -14,14 +14,14 @@ use crate::{
     zip_archive_parts::file::ZipFileHeader,
 };
 
-pub enum ZipJobOrigin<'d, 'p, 'r> {
+pub enum ZipJobOrigin<'a> {
     Directory,
-    Filesystem { path: Cow<'p, Path> },
-    RawData(Cow<'d, [u8]>),
-    Reader(Box<dyn Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>),
+    Filesystem { path: Cow<'a, Path> },
+    RawData(Cow<'a, [u8]>),
+    Reader(Box<dyn Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'a>),
 }
 
-impl core::fmt::Debug for ZipJobOrigin<'_, '_, '_> {
+impl core::fmt::Debug for ZipJobOrigin<'_> {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -41,8 +41,8 @@ struct FileDigest {
 }
 
 #[derive(Debug)]
-pub struct ZipJob<'a, 'p, 'r> {
-    pub data_origin: ZipJobOrigin<'a, 'p, 'r>,
+pub struct ZipJob<'a> {
+    pub data_origin: ZipJobOrigin<'a>,
     pub extra_fields: ExtraFields,
     pub archive_path: String,
     pub file_comment: Option<String>,
@@ -53,7 +53,7 @@ pub struct ZipJob<'a, 'p, 'r> {
     pub compression_type: CompressionType,
 }
 
-impl ZipJob<'_, '_, '_> {
+impl ZipJob<'_> {
     fn compress_file<R: Read>(
         source: R,
         uncompressed_size_approx: Option<u32>,

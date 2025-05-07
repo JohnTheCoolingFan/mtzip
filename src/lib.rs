@@ -86,12 +86,12 @@ pub enum CompressionType {
 /// [`CompressionLevel::best`]
 #[must_use]
 #[derive(Debug)]
-pub struct ZipFileBuilder<'a, 'd, 'p, 'r> {
-    archive_handle: &'a mut ZipArchive<'d, 'p, 'r>,
-    job: ZipJob<'d, 'p, 'r>,
+pub struct ZipFileBuilder<'a, 'b> {
+    archive_handle: &'b mut ZipArchive<'b>,
+    job: ZipJob<'a>,
 }
 
-impl<'a, 'd, 'p, 'r> ZipFileBuilder<'a, 'd, 'p, 'r> {
+impl<'a, 'b> ZipFileBuilder<'a, 'b> where 'a: 'b{
     /// Call this when you're done configuring the file entry and it will be added to the job list,
     /// or directly into the resulting dataset if it's a directory. Always needs to be called.
     pub fn done(self) {
@@ -174,9 +174,9 @@ impl<'a, 'd, 'p, 'r> ZipFileBuilder<'a, 'd, 'p, 'r> {
 
     #[inline]
     fn new(
-        archive: &'a mut ZipArchive<'d, 'p, 'r>,
+        archive: &'b mut ZipArchive<'b>,
         filename: String,
-        origin: ZipJobOrigin<'d, 'p, 'r>,
+        origin: ZipJobOrigin<'a>,
     ) -> Self {
         Self {
             archive_handle: archive,
@@ -193,7 +193,7 @@ impl<'a, 'd, 'p, 'r> ZipFileBuilder<'a, 'd, 'p, 'r> {
     }
 
     #[inline]
-    fn new_dir(archive: &'a mut ZipArchive<'d, 'p, 'r>, filename: String) -> Self {
+    fn new_dir(archive: &'b mut ZipArchive<'b>, filename: String) -> Self {
         Self {
             archive_handle: archive,
             job: ZipJob {
@@ -225,13 +225,13 @@ impl<'a, 'd, 'p, 'r> ZipFileBuilder<'a, 'd, 'p, 'r> {
 /// - `'r` is the lifetime of of borrowed data in readers supplied to
 ///   [`add_file_from_reader`](Self::add_file_from_reader)
 #[derive(Debug, Default)]
-pub struct ZipArchive<'d, 'p, 'r> {
-    jobs_queue: Vec<ZipJob<'d, 'p, 'r>>,
+pub struct ZipArchive<'a> {
+    jobs_queue: Vec<ZipJob<'a>>,
     data: ZipData,
 }
 
-impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
-    fn push_job(&mut self, job: ZipJob<'d, 'p, 'r>) {
+impl<'b> ZipArchive<'b>  {
+    fn push_job(&mut self, job: ZipJob<'b>) {
         self.jobs_queue.push(job);
     }
 
@@ -258,11 +258,11 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///     .done();
     /// ```
     #[inline]
-    pub fn add_file_from_fs(
-        &mut self,
-        fs_path: impl Into<Cow<'p, Path>>,
+    pub fn add_file_from_fs<'a>(
+        &'b mut self,
+        fs_path: impl Into<Cow<'a, Path>>,
         archived_path: String,
-    ) -> ZipFileBuilder<'_, 'd, 'p, 'r> {
+    ) -> ZipFileBuilder<'a, 'b> where 'a: 'b {
         ZipFileBuilder::new(
             self,
             archived_path,
@@ -287,11 +287,11 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///     .done();
     /// ```
     #[inline]
-    pub fn add_file_from_memory(
-        &mut self,
-        data: impl Into<Cow<'d, [u8]>>,
+    pub fn add_file_from_memory<'a>(
+        &'b mut self,
+        data: impl Into<Cow<'a, [u8]>>,
         archived_path: String,
-    ) -> ZipFileBuilder<'_, 'd, 'p, 'r> {
+    ) -> ZipFileBuilder<'a, 'b> where 'a: 'b {
         ZipFileBuilder::new(self, archived_path, ZipJobOrigin::RawData(data.into()))
     }
 
@@ -309,11 +309,11 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     ///     .done();
     /// ```
     #[inline]
-    pub fn add_file_from_reader<R: Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'r>(
-        &mut self,
+    pub fn add_file_from_reader<'a, R: Read + Send + Sync + UnwindSafe + RefUnwindSafe + 'a>(
+        &'b mut self,
         reader: R,
         archived_path: String,
-    ) -> ZipFileBuilder<'_, 'd, 'p, 'r> {
+    ) -> ZipFileBuilder<'a, 'b> where 'a: 'b {
         ZipFileBuilder::new(self, archived_path, ZipJobOrigin::Reader(Box::new(reader)))
     }
 
@@ -329,7 +329,7 @@ impl<'d, 'p, 'r> ZipArchive<'d, 'p, 'r> {
     /// zipper.add_directory("test_dir/".to_owned()).done();
     /// ```
     #[inline]
-    pub fn add_directory(&mut self, archived_path: String) -> ZipFileBuilder<'_, 'd, 'p, 'r> {
+    pub fn add_directory<'a>(&'b mut self, archived_path: String) -> ZipFileBuilder<'a, 'b> where 'a: 'b {
         ZipFileBuilder::new_dir(self, archived_path)
     }
 
