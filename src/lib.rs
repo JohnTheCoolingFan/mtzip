@@ -217,12 +217,10 @@ where
 /// [`Vec<u8>`](Vec) or [`PathBuf`](std::path::PathBuf), you won't have to worry about lifetimes
 /// and can simply use `'static`, if you ever need to specify them in your code.
 ///
-/// - `'d` is the lifetime of borrowed data added via
-///   [`add_file_from_memory`](Self::add_file_from_memory)
-/// - `'p` is the lifetime of borrowed [`Path`]s used in
-///   [`add_file_from_fs`](Self::add_file_from_fs)
-/// - `'r` is the lifetime of of borrowed data in readers supplied to
-///   [`add_file_from_reader`](Self::add_file_from_reader)
+/// The lifetime `'a` is for the borrowed data passed in
+/// [`add_file_from_memory`](Self::add_file_from_memory),
+/// [`add_file_from_fs`](Self::add_file_from_fs) and
+/// [`add_file_from_reader`](Self::add_file_from_reader)
 #[derive(Debug, Default)]
 pub struct ZipArchive<'a> {
     jobs_queue: Vec<ZipJob<'a>>,
