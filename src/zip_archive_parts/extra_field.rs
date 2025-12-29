@@ -206,17 +206,9 @@ impl ExtraField {
     #[inline]
     fn header_id(&self) -> u16 {
         match self {
-            Self::Ntfs {
-                mtime: _,
-                atime: _,
-                ctime: _,
-            } => 0x000a,
-            Self::UnixExtendedTimestamp {
-                mod_time: _,
-                ac_time: _,
-                cr_time: _,
-            } => 0x5455,
-            Self::UnixAttrs { uid: _, gid: _ } => 0x7875,
+            Self::Ntfs { .. } => 0x000a,
+            Self::UnixExtendedTimestamp { .. } => 0x5455,
+            Self::UnixAttrs { .. } => 0x7875,
         }
     }
 
@@ -231,11 +223,7 @@ impl ExtraField {
     #[inline]
     const fn field_size<const CENTRAL_HEADER: bool>(&self) -> u16 {
         match self {
-            Self::Ntfs {
-                mtime: _,
-                atime: _,
-                ctime: _,
-            } => 32,
+            Self::Ntfs { .. } => 32,
             Self::UnixExtendedTimestamp {
                 mod_time,
                 ac_time,
@@ -249,7 +237,7 @@ impl ExtraField {
                     }
                 }
             }
-            Self::UnixAttrs { uid: _, gid: _ } => 11,
+            Self::UnixAttrs { .. } => 11,
         }
     }
 
